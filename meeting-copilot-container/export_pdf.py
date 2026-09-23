@@ -294,8 +294,68 @@ def parse_markdown(md_text):
     return blocks
 
 
+# Длинная колонка не должна съедать всю строку.
+MAX_WEIGHT = 60
+# Горизонтальные отступы ячейки, заданы в TableStyle ниже (LEFT + RIGHT).
+CELL_PADDING = 10
+
+
+def _widest_word(text, font_name, font_size):
+    """Ширина самого длинного слова — колонка уже него рвёт слова посередине."""
+    return max(
+        (pdfmetrics.stringWidth(word, font_name, font_size) for word in text.split()),
+        default=0,
+    )
+
+
+def column_widths(header, rows, ncols, frame_width):
+    """
+    Ширины колонок пропорционально длине содержимого.
+
+    Равные доли плохи для таблицы поручений: колонка «Поручение» длиннее
+    остальных в разы, и при равных долях текст в ней рвётся на обрывки, а
+    «Срок» стоит полупустым. Вес колонки — длина самой длинной ячейки,
+    ограниченная сверху, чтобы одна колонка не забрала всю строку.
+
+    Нижняя граница считается по самому длинному НЕРАЗРЫВНОМУ слову колонки,
+    а не берётся константой: иначе заголовок вроде «Ответственный» переносится
+    посередине слова.
+    """
+    weights = []
+    minimums = []
+    for i in range(ncols):
+        head = header[i] if i < len(header) else ""
+        longest = len(head)
+        # Заголовок набран жирным — он шире того же текста обычным начертанием.
+        min_w = _widest_word(head, FONT_BOLD, 9)
+        for row in rows:
+            if i < len(row):
+                longest = max(longest, len(row[i]))
+                min_w = max(min_w, _widest_word(row[i], FONT_REGULAR, 9))
+        weights.append(min(max(longest, 1), MAX_WEIGHT))
+        minimums.append(min_w + CELL_PADDING)
+
+    total = sum(weights)
+    widths = [frame_width * w / total for w in weights]
+
+    # Колонки, которым не хватает до минимума, добираем за счёт тех, у кого
+    # есть запас. Если минимумы в строку не влезают (очень длинные слова),
+    # честнее отдать всем поровну, чем ломать вёрстку.
+    if sum(minimums) >= frame_width:
+        return [frame_width / ncols] * ncols
+
+    deficit = sum(m - w for w, m in zip(widths, minimums) if w < m)
+    if deficit > 0:
+        surplus = sum(w - m for w, m in zip(widths, minimums) if w > m)
+        widths = [
+            m if w < m else w - (w - m) * deficit / surplus
+            for w, m in zip(widths, minimums)
+        ]
+    return widths
+
+
 def build_table(block, styles, frame_width):
-    """Блок-таблица -> flowable с равномерными колонками по ширине страницы."""
+    """Блок-таблица -> flowable с колонками по ширине содержимого."""
     header = block["header"]
     rows = block["rows"]
     ncols = max([len(header)] + [len(r) for r in rows]) if rows else len(header)
@@ -307,7 +367,7 @@ def build_table(block, styles, frame_width):
     for row in rows:
         data.append([Paragraph(inline(c), styles["cell"]) for c in pad(row)])
 
-    table = Table(data, colWidths=[frame_width / ncols] * ncols, repeatRows=1)
+    table = Table(data, colWidths=column_widths(header, rows, ncols, frame_width), repeatRows=1)
     table.setStyle(
         TableStyle(
             [
