@@ -1,3 +1,4 @@
+import { MarkdownBlocks } from "@/components/markdown-blocks";
 import type { MeetingResult } from "@/lib/types";
 import { formatTime } from "@/lib/utils";
 
@@ -32,21 +33,9 @@ export function PrintableProtocol({ result }: { result: MeetingResult }) {
 
       <section className="mt-4">
         <h2 className="text-base font-semibold">Саммари</h2>
-        {result.summary
-          .split("\n")
-          .filter((l) => l.trim() !== "")
-          .map((l, i) => {
-            const t = l.trim();
-            return t.startsWith("- ") ? (
-              <li key={i} className="ml-6 list-disc text-sm">
-                {t.slice(2)}
-              </li>
-            ) : (
-              <p key={i} className="text-sm">
-                {t.replace(/^#+\s*/, "")}
-              </p>
-            );
-          })}
+        <div className="mt-2">
+          <MarkdownBlocks source={result.summary} print />
+        </div>
       </section>
 
       <section className="mt-4">

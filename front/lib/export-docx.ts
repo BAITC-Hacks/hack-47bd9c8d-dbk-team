@@ -13,6 +13,7 @@ import {
   WidthType,
 } from "docx";
 import type { MeetingResult } from "./types";
+import { parseMarkdown, type Inline } from "./markdown";
 import { formatTime } from "./utils";
 
 const STATUS_TEXT: Record<string, string> = {
@@ -23,6 +24,68 @@ const STATUS_TEXT: Record<string, string> = {
 
 function text(value: string, bold = false): TextRun {
   return new TextRun({ text: value, bold });
+}
+
+function runs(inline: Inline[]): TextRun[] {
+  return inline.map((part) => text(part.text, part.bold));
+}
+
+/**
+ * Саммари в структуру Word: заголовки заголовками, списки списками, таблица
+ * поручений таблицей. Разбор общий с экраном (`lib/markdown.ts`), поэтому
+ * выгруженный файл выглядит так же, как то, что человек видел в браузере.
+ */
+function summaryBlocks(summary: string): (Paragraph | Table)[] {
+  return parseMarkdown(summary).map((block) => {
+    switch (block.kind) {
+      case "heading":
+        return new Paragraph({
+          heading:
+            block.level === 1 ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3,
+          spacing: { before: 200, after: 80 },
+          children: runs(block.inline),
+        });
+      case "bullet":
+        return new Paragraph({
+          bullet: { level: 0 },
+          children: runs(block.inline),
+        });
+      case "numbered":
+        return new Paragraph({
+          children: [text(`${block.marker} `), ...runs(block.inline)],
+        });
+      case "table":
+        return new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: block.head.map(
+                (cell) =>
+                  new TableCell({
+                    children: [new Paragraph({ children: [text(cell, true)] })],
+                  }),
+              ),
+            }),
+            ...block.rows.map(
+              (row) =>
+                new TableRow({
+                  children: row.map(
+                    (cell) =>
+                      new TableCell({
+                        children: [new Paragraph({ children: [text(cell)] })],
+                      }),
+                  ),
+                }),
+            ),
+          ],
+        });
+      default:
+        return new Paragraph({
+          spacing: { after: 80 },
+          children: runs(block.inline),
+        });
+    }
+  });
 }
 
 export async function exportDocx(result: MeetingResult): Promise<void> {
@@ -62,21 +125,7 @@ export async function exportDocx(result: MeetingResult): Promise<void> {
             heading: HeadingLevel.HEADING_2,
             children: [text("Саммари", true)],
           }),
-          ...result.summary
-            .split("\n")
-            .filter((line) => line.trim() !== "")
-            .map((line) => {
-              const trimmed = line.trim();
-              if (trimmed.startsWith("- ")) {
-                return new Paragraph({
-                  bullet: { level: 0 },
-                  children: [text(trimmed.slice(2))],
-                });
-              }
-              return new Paragraph({
-                children: [text(trimmed.replace(/^#+\s*/, ""))],
-              });
-            }),
+          ...summaryBlocks(result.summary),
           new Paragraph({ text: "" }),
 
           new Paragraph({
