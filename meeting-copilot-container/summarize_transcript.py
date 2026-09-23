@@ -19,6 +19,11 @@
     LLM_API_KEY     - Bearer-токен для авторизации
     LLM_MODEL       - (необязательно) модель по умолчанию
 
+Принимаются и имена VLLM_BASE_URL / VLLM_API_KEY / VLLM_MODEL — так они
+названы в рабочем .env команды и в tools/extract_commitments.py. Адрес можно
+давать как полный endpoint, так и до /v1: путь /chat/completions дописывается
+сам.
+
 Старые имена OPEN_ROUTER_URL / OPEN_ROUTER_AUTH_BEARER / OPEN_ROUTER_MODEL
 продолжают работать как запасной вариант.
 
@@ -39,9 +44,16 @@ import requests
 from dotenv import load_dotenv
 
 
-DEFAULT_MODEL = "zai-org/GLM-5.3"
+# Модель по умолчанию — своя, на vllm.aibots.kz. Текст совещания не должен
+# покидать контур (ограничение кейса), поэтому внешние облачные LLM тут не
+# годятся.
+DEFAULT_MODEL = "qwen3-vl-30b-instruct"
 FLASH_MODEL = "zai-org/GLM-5.3-Flash"  # дешевле в ~9 раз, чуть ниже качество
 DEFAULT_ENV_FILE = Path(__file__).resolve().parent / ".env"
+
+# Шлюз модели стоит за Cloudflare, который отдаёт 403 на User-Agent
+# по умолчанию у python-клиентов.
+USER_AGENT = "dbk-meeting-copilot/1.0"
 
 DEFAULT_SYSTEM_PROMPT = (
     "Ты — ассистент, который делает краткое и структурированное summary "
@@ -117,6 +129,22 @@ def participants_prompt(transcript):
     )
 
 
+def chat_completions_url(base_url):
+    """
+    Приводит адрес модели к полному endpoint'у /chat/completions.
+
+    VLLM_BASE_URL задаётся как .../v1 (так его знают остальные потребители,
+    см. tools/extract_commitments.py), а OPEN_ROUTER_URL исторически хранил
+    полный путь. Принимаем оба вида.
+    """
+    base_url = (base_url or "").strip().rstrip("/")
+    if not base_url:
+        return ""
+    if base_url.endswith("/chat/completions"):
+        return base_url
+    return f"{base_url}/chat/completions"
+
+
 def load_env_file(path):
     """Загружает .env файл, не перезаписывая уже заданные переменные окружения."""
     load_dotenv(path, override=False)
@@ -144,6 +172,7 @@ def call_llm(transcript_text, model, system_prompt, api_url, api_key, extra_head
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
+        "User-Agent": USER_AGENT,
     }
     if extra_headers:
         headers.update(extra_headers)
@@ -191,19 +220,36 @@ def main():
 
     load_env_file(args.env_file)
 
-    model = (args.model or os.environ.get("LLM_MODEL")
-             or os.environ.get("OPEN_ROUTER_MODEL") or DEFAULT_MODEL)
+    model = (
+        args.model
+        or os.environ.get("LLM_MODEL")
+        or os.environ.get("VLLM_MODEL")
+        or os.environ.get("OPEN_ROUTER_MODEL")
+        or DEFAULT_MODEL
+    )
     if args.flash:
         model = FLASH_MODEL
     args.model = model
 
-    # Новые нейтральные имена, старые оставлены запасным вариантом.
-    api_url = os.environ.get("LLM_API_URL") or os.environ.get("OPEN_ROUTER_URL")
-    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("OPEN_ROUTER_AUTH_BEARER")
+    # Нейтральные имена основные; VLLM_* — как в рабочем .env команды;
+    # OPEN_ROUTER_* — запасной вариант для прежних .env.
+    api_url = chat_completions_url(
+        os.environ.get("LLM_API_URL")
+        or os.environ.get("VLLM_BASE_URL")
+        or os.environ.get("OPEN_ROUTER_URL")
+        or ""
+    )
+    api_key = (
+        os.environ.get("LLM_API_KEY")
+        or os.environ.get("VLLM_API_KEY")
+        or os.environ.get("OPEN_ROUTER_AUTH_BEARER")
+    )
 
     if not api_url or not api_key:
         print(
-            f"Ошибка: не заданы OPEN_ROUTER_URL и/или OPEN_ROUTER_AUTH_BEARER.\n"
+            f"Ошибка: не заданы LLM_API_URL и/или LLM_API_KEY "
+            f"(принимаются также VLLM_BASE_URL / VLLM_API_KEY и старые "
+            f"OPEN_ROUTER_URL / OPEN_ROUTER_AUTH_BEARER).\n"
             f"Задай их в файле {args.env_file} (формат KEY=VALUE) или через export в окружении.",
             file=sys.stderr,
         )

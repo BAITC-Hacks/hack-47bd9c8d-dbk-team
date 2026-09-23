@@ -1,6 +1,7 @@
 from typing import Optional
 from .base import BaseTranscriber
 from .kdb_whisper import KdbWhisperTranscriber
+from .speech_stack import SpeechStackTranscriber
 import config
 
 
@@ -13,9 +14,19 @@ def get_transcriber(
     **kwargs
 ) -> BaseTranscriber:
     """
-    Фабрика для получения транскрибатора по имени провайдера ('kdb').
+    Фабрика для получения транскрибатора по имени провайдера
+    ('speech_stack' | 'kdb').
     """
     selected_provider = (provider or config.DEFAULT_PROVIDER).lower()
+
+    if selected_provider in ("speech_stack", "speech-stack", "stt", "stt.aibots.kz", "aibots"):
+        # Диаризация живёт в том же стеке и за тем же токеном, поэтому ip/
+        # host-подмена (нужная только ai.kdb.kz) сюда не передаётся.
+        return SpeechStackTranscriber(
+            token=token or api_key,
+            base_url=base_url,
+            **kwargs
+        )
 
     if selected_provider in ("kdb", "kdb_whisper", "ai.kdb.kz", "kdb.kz"):
         return KdbWhisperTranscriber(
@@ -27,5 +38,5 @@ def get_transcriber(
     else:
         raise ValueError(
             f"Неизвестный провайдер распознавания речи: '{provider}'. "
-            f"Доступные провайдеры: 'kdb'"
+            f"Доступные провайдеры: 'speech_stack', 'kdb'"
         )

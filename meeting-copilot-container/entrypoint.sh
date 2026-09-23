@@ -6,8 +6,13 @@
 # реплики схлопываются по говорящему, и сразу выполняется суммаризация.
 #
 # Если VTT не передан (видео/аудио без субтитров Zoom, например запись с
-# телефона), спикеры определяются диаризацией ai.kdb.kz (/api/diar) — вместо
-# имён будут безымянные "Speaker 0", "Speaker 1" и т.д.
+# телефона), спикеры определяются диаризацией — вместо имён будут безымянные
+# "Speaker 0", "Speaker 1" и т.д. Модель диаризации различает ровно четыре
+# голоса: пятый участник сливается с одним из четырёх.
+#
+# Речевая служба выбирается переменной DEFAULT_PROVIDER:
+#   speech_stack (по умолчанию) - свой стек, stt.aibots.kz, токен STT_TOKEN;
+#   kdb                         - ai.kdb.kz, токен AI_KDB_TOKEN.
 #
 # Использование:
 #   entrypoint.sh <audio_file> [vtt_file] [output_dir]
@@ -22,7 +27,7 @@
 #   summary.pdf       - тот же summary в PDF (export_pdf.py); если экспорт
 #                       не удался, файла просто не будет
 #
-# Промежуточные файлы (audio.mp3, ответы ai.kdb.kz) создаются во временной
+# Промежуточные файлы (audio.mp3, ответы речевой службы) создаются во временной
 # директории и удаляются по завершении — не сохраняются.
 
 set -euo pipefail
@@ -36,13 +41,24 @@ usage() {
   exit 1
 }
 
-# POST файла в ai.kdb.kz с проверкой HTTP-кода: call_ai_kdb <url> <out_file> [доп. curl -F ...]
-call_ai_kdb() {
+# POST файла в речевую службу с проверкой HTTP-кода:
+#   call_speech_api <url> <out_file> [доп. curl -F ...]
+# User-Agent задаётся явно: шлюз speech_stack стоит за Cloudflare, который
+# отдаёт 403 на User-Agent по умолчанию у некоторых клиентов.
+call_speech_api() {
   local url="$1" out_file="$2"
   shift 2
   local http_code
   http_code=$(curl -s -o "$out_file" -w "%{http_code}" "$url" \
-    -H "Authorization: Bearer ${AI_KDB_TOKEN}" "$@")
+    -H "Authorization: Bearer ${SPEECH_TOKEN}" \
+    -H "User-Agent: dbk-meeting-copilot/1.0" "$@")
+  if [ "$http_code" = "401" ]; then
+    echo "[!] $url вернул 401." >&2
+    echo "    Проверьте токен — и заодно путь: шлюз speech_stack закрывает 401" >&2
+    echo "    и неизвестные пути, чтобы снаружи не был виден состав ручек." >&2
+    cat "$out_file" >&2
+    exit 1
+  fi
   if [ "$http_code" != "200" ]; then
     echo "[!] Ошибка запроса к $url, HTTP $http_code:" >&2
     cat "$out_file" >&2
@@ -65,8 +81,42 @@ else
   OUTPUT_DIR="${ARG2:-/artifacts/$BASENAME}"
 fi
 
-: "${AI_KDB_URL:=https://ai.kdb.kz}"
 : "${DEFAULT_LANGUAGE:=ru}"
+: "${DEFAULT_PROVIDER:=speech_stack}"
+
+# Провайдер распознавания и диаризации. Стеки различаются путями ручек и
+# именем переменной с токеном, поэтому и то и другое выбирается здесь, а ниже
+# по скрипту используются уже готовые TRANSCRIBE_URL / DIARIZE_URL.
+case "${DEFAULT_PROVIDER}" in
+  speech_stack|speech-stack|stt|aibots)
+    # Имена переменных исторически разошлись: документация стека говорит
+    # SPEECH_STACK_URL/STT_TOKEN, рабочий .env команды — STT_BASE_URL/
+    # STT_API_KEY. Принимаем оба, как и config.py.
+    SPEECH_BASE="${SPEECH_STACK_URL:-${STT_BASE_URL:-https://stt.aibots.kz}}"
+    SPEECH_BASE="${SPEECH_BASE%/}"
+    SPEECH_TOKEN="${STT_TOKEN:-${STT_API_KEY:-}}"
+    SPEECH_TOKEN_VAR="STT_TOKEN (или STT_API_KEY)"
+    TRANSCRIBE_URL="${SPEECH_BASE}/v1/audio/transcriptions"
+    DIARIZE_URL="${SPEECH_BASE}/v1/audio/diarize"
+    # Свой стек принимает ru | kk | en | auto; если язык задан отдельно для
+    # него — он и побеждает, иначе берётся общий DEFAULT_LANGUAGE.
+    LANGUAGE="${SPEECH_STACK_LANGUAGE:-$DEFAULT_LANGUAGE}"
+    ;;
+  kdb|kdb_whisper)
+    : "${AI_KDB_URL:=https://ai.kdb.kz}"
+    SPEECH_BASE="${AI_KDB_URL%/}"
+    SPEECH_TOKEN="${AI_KDB_TOKEN:-}"
+    SPEECH_TOKEN_VAR="AI_KDB_TOKEN"
+    TRANSCRIBE_URL="${SPEECH_BASE}/api/whisper/v1/audio/transcriptions"
+    DIARIZE_URL="${SPEECH_BASE}/api/diar/v1/audio/diarize"
+    LANGUAGE="${DEFAULT_LANGUAGE}"
+    ;;
+  *)
+    echo "[!] Неизвестный DEFAULT_PROVIDER='${DEFAULT_PROVIDER}'." >&2
+    echo "    Допустимые значения: speech_stack, kdb." >&2
+    exit 1
+    ;;
+esac
 
 [ -f "$AUDIO_FILE" ] || { echo "[!] Аудиофайл не найден: $AUDIO_FILE" >&2; exit 1; }
 if [ -n "$VTT_FILE" ]; then
@@ -91,8 +141,9 @@ if [ "$VTT_LANG" = "en" ]; then
   echo "[2/2] Склейка реплик VTT (без аудио) -> transcript.json" >&2
   python3 merge_transcript.py "$VTT_FILE" "$MERGED_JSON" --vtt-only
 else
-  if [ -z "${AI_KDB_TOKEN:-}" ]; then
-    echo "[!] AI_KDB_TOKEN не задан. Передайте .env через --env-file / env_file." >&2
+  if [ -z "${SPEECH_TOKEN}" ]; then
+    echo "[!] ${SPEECH_TOKEN_VAR} не задан (провайдер ${DEFAULT_PROVIDER})." >&2
+    echo "    Передайте .env через --env-file / env_file." >&2
     exit 1
   fi
 
@@ -103,20 +154,31 @@ else
     ffmpeg -y -loglevel error -i "$AUDIO_FILE" -vn -ar 44100 -ac 2 -b:a 192k "$MP3_FILE"
   fi
 
-  echo "[2/4] Транскрибация через ai.kdb.kz (язык: $DEFAULT_LANGUAGE)" >&2
+  echo "[2/4] Транскрибация через ${SPEECH_BASE} (язык: $LANGUAGE)" >&2
   RAW_JSON="$WORK_DIR/transcript_raw.json"
-  call_ai_kdb "${AI_KDB_URL%/}/api/whisper/v1/audio/transcriptions" "$RAW_JSON" \
-    -F "file=@${MP3_FILE}" \
-    -F "language=${DEFAULT_LANGUAGE}" \
+  # Запись распознаётся ЦЕЛИКОМ, а не по сегментам: модель видит контекст, и
+  # ошибок на границах реплик заметно меньше. verbose_json обязателен — без
+  # пословных меток времени склейка с диаризацией невозможна.
+  # Поле prompt намеренно не передаётся: на материале speech_stack оно резко
+  # портит результат.
+  TRANSCRIBE_ARGS=(
+    -F "file=@${MP3_FILE}"
+    -F "language=${LANGUAGE}"
     -F "response_format=verbose_json"
+  )
+  # Собственные имена повышают точность ФИО в расшифровке.
+  if [ -n "${SPEECH_STACK_HOTWORDS:-}" ]; then
+    TRANSCRIBE_ARGS+=(-F "hotwords=${SPEECH_STACK_HOTWORDS}")
+  fi
+  call_speech_api "$TRANSCRIBE_URL" "$RAW_JSON" "${TRANSCRIBE_ARGS[@]}"
 
   if [ -n "$VTT_FILE" ]; then
     echo "[3/4] Склейка VTT + JSON -> transcript.json" >&2
     python3 merge_transcript.py "$VTT_FILE" "$RAW_JSON" "$MERGED_JSON"
   else
-    echo "[3/4] VTT не передан — диаризация через ai.kdb.kz (/api/diar)" >&2
+    echo "[3/4] VTT не передан — диаризация через ${DIARIZE_URL}" >&2
     DIAR_JSON="$WORK_DIR/diarization.json"
-    call_ai_kdb "${AI_KDB_URL%/}/api/diar/v1/audio/diarize" "$DIAR_JSON" \
+    call_speech_api "$DIARIZE_URL" "$DIAR_JSON" \
       -F "file=@${MP3_FILE}"
 
     echo "[3b/4] Склейка транскрипции + диаризации -> transcript.json" >&2
