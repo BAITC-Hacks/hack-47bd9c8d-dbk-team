@@ -13,16 +13,28 @@ const STAGES = [
   { id: "llm", label: "Саммари и поручения" },
 ];
 
-export function MeetingProgress({ status }: { status: MeetingStatus }) {
+export function MeetingProgress({
+  status,
+  startedAt,
+}: {
+  status: MeetingStatus;
+  /** Начало обработки. Задан — таймер считается от него и переживает
+   *  обновление страницы; не задан — от появления компонента. */
+  startedAt?: string | null;
+}) {
   const failed = status.state === "failed";
   const ready = status.state === "ready";
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     if (ready || failed) return;
-    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    const since = startedAt ? new Date(startedAt).getTime() : Date.now();
+    const tick = () =>
+      setElapsed(Math.max(0, Math.floor((Date.now() - since) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, [ready, failed]);
+  }, [ready, failed, startedAt]);
 
   // The pipeline reports an explicit stage only on failure. While it is
   // unknown, no single stage gets the spinner — upload is done, the rest is

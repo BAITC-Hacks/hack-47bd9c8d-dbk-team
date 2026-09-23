@@ -13,7 +13,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY merge_transcript.py summarize_transcript.py export_pdf.py entrypoint.sh ./
+COPY chunked_transcribe.py merge_transcript.py summarize_transcript.py export_pdf.py entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
 VOLUME ["/data", "/artifacts"]

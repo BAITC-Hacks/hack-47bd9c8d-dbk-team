@@ -161,16 +161,14 @@ else
   # пословных меток времени склейка с диаризацией невозможна.
   # Поле prompt намеренно не передаётся: на материале speech_stack оно резко
   # портит результат.
-  TRANSCRIBE_ARGS=(
-    -F "file=@${MP3_FILE}"
-    -F "language=${LANGUAGE}"
-    -F "response_format=verbose_json"
-  )
-  # Собственные имена повышают точность ФИО в расшифровке.
-  if [ -n "${SPEECH_STACK_HOTWORDS:-}" ]; then
-    TRANSCRIBE_ARGS+=(-F "hotwords=${SPEECH_STACK_HOTWORDS}")
-  fi
-  call_speech_api "$TRANSCRIBE_URL" "$RAW_JSON" "${TRANSCRIBE_ARGS[@]}"
+  # Длинная запись режется на куски и склеивается обратно: шлюз за Cloudflare
+  # не ждёт ответ дольше полутора минут и отдаёт 524, не дожидаясь. Короткая
+  # уходит одним запросом, как раньше, — chunked_transcribe.py решает сам.
+  python3 chunked_transcribe.py "$MP3_FILE" "$RAW_JSON" \
+    --url "$TRANSCRIBE_URL" \
+    --token "$SPEECH_TOKEN" \
+    --language "$LANGUAGE" \
+    --hotwords "${SPEECH_STACK_HOTWORDS:-}"
 
   if [ -n "$VTT_FILE" ]; then
     echo "[3/4] Склейка VTT + JSON -> transcript.json" >&2
