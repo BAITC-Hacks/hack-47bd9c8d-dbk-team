@@ -8,7 +8,7 @@ Always load:
 
 Load conditionally:
 
-- `frontend.md` — paths: template/**; topics: UI, design system
+- `frontend.md` — paths: template/**, app/**, components/**; topics: UI, UX, design system, frontend, styling
 
 A domain file is relevant when the task touches one of its paths or discusses one of its topics.
 
