@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cacheResult } from "@/lib/commitments-store";
 import { config } from "@/lib/config";
 import { getResultJson } from "@/lib/minio";
 import type { MeetingResult } from "@/lib/types";
@@ -19,6 +20,7 @@ export async function GET(
 
   try {
     const result = await getResultJson<MeetingResult>(`${id}/result.json`);
+    cacheResult(result);
     return NextResponse.json(result);
   } catch (err) {
     console.error("[result] failed to load", id, err);

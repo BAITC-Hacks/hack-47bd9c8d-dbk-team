@@ -12,7 +12,7 @@ export function MeetingResultView({ result }: { result: MeetingResult }) {
       <div className="flex items-center justify-between gap-4 print:hidden">
         <h2 className="text-lg font-semibold text-navy-800">
           Протокол встречи{" "}
-          <span className="font-mono text-zinc-400">{result.meeting_id}</span>
+          <span className="font-mono text-zinc-500">{result.meeting_id}</span>
         </h2>
         <ExportButtons result={result} />
       </div>
