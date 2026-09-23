@@ -63,12 +63,45 @@ def to_iso(raw: str) -> str | None:
     return None
 
 
+# Срочность обработчик пишет из закрытого списка — по нему и узнаём, какая
+# половина ячейки «Классификация» есть что. Порядок частей не фиксируем:
+# «Срочно · Закупки» и «Закупки · Срочно» разберутся одинаково.
+URGENCY_VALUES = {"срочно": "urgent", "планово": "planned", "без срока": "no_due"}
+
+
+def split_classification(raw: str) -> tuple[str | None, str | None]:
+    """«Срочно · Закупки» -> ('Срочно', 'Закупки').
+
+    Возвращает (срочность, направление); отсутствующая часть — None.
+    Разделителем модель ставит « · », но на всякий случай принимаем и
+    привычные заменители, в которые его норовят превратить. Тире и дефис
+    считаются разделителем только в окружении пробелов, иначе «ИТ-инфраструктура»
+    развалилась бы на две части.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return None, None
+
+    parts = [p.strip() for p in re.split(r"\s*[·•|;,/]\s*|\s+[-–—]\s+", raw) if p and p.strip()]
+    urgency = next((p for p in parts if p.lower() in URGENCY_VALUES), None)
+    area = next((p for p in parts if p is not urgency), None)
+    # Одна часть и та не срочность — значит это направление.
+    if urgency is None and area is None and parts:
+        area = parts[0]
+    return urgency, area
+
+
 def parse_commitments(summary: str) -> list[dict]:
     """Разбирает таблицу поручений из summary.md.
 
     Обработчик отдаёт раздел «Поручения» markdown-таблицей
-    «Поручение | Ответственный | Срок». Разбор таблицы детерминирован и не
-    требует ещё одного вызова модели — на демо это лишняя минута ожидания.
+    «Поручение | Ответственный | Срок | Классификация». Разбор таблицы
+    детерминирован и не требует ещё одного вызова модели — на демо это лишняя
+    минута ожидания.
+
+    Колонка «Классификация» появилась позже остальных, поэтому она
+    необязательная: на таблице из трёх колонок разбор работает как раньше,
+    а classification/urgency/area приходят пустыми.
     """
     out, in_table = [], False
     for line in summary.splitlines():
@@ -88,11 +121,18 @@ def parse_commitments(summary: str) -> list[dict]:
         text, who, due_raw = cells[0], cells[1], cells[2]
         # Четвёртая колонка — классификация по срочности и направлению
         # («Срочно · Договорная работа»). Пункт из раздела «Дополнительно».
-        classification = cells[3] if len(cells) > 3 else None
+        classification = cells[3] if len(cells) > 3 else ""
+        urgency, area = split_classification(classification)
         out.append({"id": f"c{len(out)+1}", "assignee": who or None,
                     "assignee_speaker": who if who.lower().startswith("speaker") else None,
                     "due_date": to_iso(due_raw), "due_raw": due_raw,
                     "text": text, "quote": text, "t_start": None,
+                    # Классификация: строкой как есть — для показа, и
+                    # разобранная на части — для фильтров и сортировки.
+                    "classification": classification or None,
+                    "urgency": urgency,
+                    "urgency_code": URGENCY_VALUES.get((urgency or "").lower()),
+                    "area": area,
                     # Ответственный пришёл ярлыком, а не именем — привязка
                     # к человеку не подтверждена, помечаем честно.
                     "classification": classification,
