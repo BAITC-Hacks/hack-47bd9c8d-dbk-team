@@ -19,6 +19,8 @@
 # финальные артефакты:
 #   transcript.json  - результат merge_transcript.py (vtt+json, только vtt, либо json+диаризация)
 #   summary.md        - результат summarize_transcript.py
+#   summary.pdf       - тот же summary в PDF (export_pdf.py); если экспорт
+#                       не удался, файла просто не будет
 #
 # Промежуточные файлы (audio.mp3, ответы ai.kdb.kz) создаются во временной
 # директории и удаляются по завершении — не сохраняются.
@@ -125,6 +127,16 @@ fi
 echo "[4/4] Суммаризация -> summary.md" >&2
 SUMMARY_MD="$OUTPUT_DIR/summary.md"
 python3 summarize_transcript.py "$MERGED_JSON" "$SUMMARY_MD"
+
+# PDF — производный артефакт: если экспорт сорвался (нет шрифта с кириллицей,
+# битая разметка), транскрипт и summary уже готовы и терять их из-за этого
+# нельзя. Поэтому шаг неблокирующий, несмотря на set -e.
+echo "[4b/4] Экспорт summary.md -> summary.pdf" >&2
+SUMMARY_PDF="$OUTPUT_DIR/summary.pdf"
+if ! python3 export_pdf.py "$SUMMARY_MD" "$SUMMARY_PDF"; then
+  echo "[!] Не удалось собрать summary.pdf — пропускаю, summary.md на месте" >&2
+  rm -f "$SUMMARY_PDF"
+fi
 
 echo "[+] Готово. Артефакты в $OUTPUT_DIR:" >&2
 ls -la "$OUTPUT_DIR" >&2

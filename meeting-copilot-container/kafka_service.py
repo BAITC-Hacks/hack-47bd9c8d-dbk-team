@@ -13,9 +13,9 @@ KAFKA_RESPONSE_TOPIC уходит RecognitionResponse с описанием пр
 входящего RecognitionRequest:
   1. скачивает файлы из указанной папки MinIO;
   2. прогоняет их через существующий пайплайн (entrypoint.sh: аудио -> mp3 ->
-     распознавание ai.kdb.kz -> склейка -> суммаризация);
-  3. заливает результат (transcript.json, summary.md) обратно в ту же папку
-     MinIO;
+     распознавание ai.kdb.kz -> склейка -> суммаризация -> экспорт в PDF);
+  3. заливает результат (transcript.json, summary.md, summary.pdf) обратно
+     в ту же папку MinIO;
   4. публикует RecognitionResponse в KAFKA_RESPONSE_TOPIC
      (AiMeetingCopilotResponse).
 
@@ -181,8 +181,14 @@ def run_pipeline(audio_file: Path, vtt_file: Optional[Path], output_dir: Path) -
         )
 
 
+# Артефакты, которые заливаются обратно в папку MinIO. summary.pdf —
+# производный от summary.md, его может не быть, если экспорт в entrypoint.sh
+# не удался; отсутствующие файлы просто пропускаются.
+RESULT_FILES = ("transcript.json", "summary.md", "summary.pdf")
+
+
 def upload_results(client: Minio, bucket: str, prefix: str, output_dir: Path) -> None:
-    for name in ("transcript.json", "summary.md"):
+    for name in RESULT_FILES:
         local_path = output_dir / name
         if local_path.exists():
             client.fput_object(bucket, f"{prefix}{name}", str(local_path))
