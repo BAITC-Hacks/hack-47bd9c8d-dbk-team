@@ -46,6 +46,8 @@ export interface UploadedEvent {
   object_key: string;
   filename: string;
   lang_hint: string;
+  /** Рядом с записью лежат субтитры Zoom: обработчик возьмёт имена из них. */
+  has_vtt?: boolean;
 }
 
 export interface ReadyEvent {

@@ -70,11 +70,12 @@ export default function HomePage() {
     [stopPolling],
   );
 
-  async function handleUpload(file: File) {
+  async function handleUpload(file: File, vtt: File | null = null) {
     setPhase({ kind: "uploading" });
     try {
       const form = new FormData();
       form.append("file", file);
+      if (vtt) form.append("vtt", vtt);
       const res = await fetch("/api/meetings", { method: "POST", body: form });
       const body = await res.json();
       if (!res.ok) {
