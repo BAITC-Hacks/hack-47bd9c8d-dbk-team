@@ -1,0 +1,193 @@
+name: meeting-copilot
+
+networks:
+  web:
+
+volumes:
+  letsencrypt:
+  kafka-data:
+  minio-data:
+
+services:
+  traefik:
+    image: traefik:v3.7
+    restart: unless-stopped
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.le.acme.caserver=${LE_CA_SERVER}
+      - --api.dashboard=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks: [web]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.traefik.rule: Host(`traefik.${DOMAIN}`)
+      traefik.http.routers.traefik.entrypoints: websecure
+      traefik.http.routers.traefik.tls.certresolver: le
+      traefik.http.routers.traefik.service: api@internal
+      traefik.http.routers.traefik.middlewares: traefik-auth
+      traefik.http.middlewares.traefik-auth.basicauth.users: ${TRAEFIK_DASHBOARD_AUTH}
+
+  kafka:
+    image: apache/kafka:3.9.0
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_LISTENERS: INTERNAL://:9092,HOST://:9094,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,HOST://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+    ports:
+      - "127.0.0.1:9094:9094"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks: [web]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  kafka-init:
+    image: apache/kafka:3.9.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./kafka/kafka-init.sh:/kafka-init.sh:ro
+    entrypoint: ["/bin/sh", "/kafka-init.sh"]
+    networks: [web]
+    restart: "no"
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.2.0
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      AUTH_TYPE: LOGIN_FORM
+      SPRING_SECURITY_USER_NAME: admin
+      SPRING_SECURITY_USER_PASSWORD: ${KAFKA_UI_PASSWORD}
+    networks: [web]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.kafka-ui.rule: Host(`kafka-ui.${DOMAIN}`)
+      traefik.http.routers.kafka-ui.entrypoints: websecure
+      traefik.http.routers.kafka-ui.tls.certresolver: le
+      traefik.http.services.kafka-ui.loadbalancer.server.port: "8080"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    networks: [web]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.s3-api.rule: Host(`s3.${DOMAIN}`)
+      traefik.http.routers.s3-api.entrypoints: websecure
+      traefik.http.routers.s3-api.tls.certresolver: le
+      traefik.http.services.s3-api.loadbalancer.server.port: "9000"
+      traefik.http.routers.s3-console.rule: Host(`s3-console.${DOMAIN}`)
+      traefik.http.routers.s3-console.entrypoints: websecure
+      traefik.http.routers.s3-console.tls.certresolver: le
+      traefik.http.services.s3-console.loadbalancer.server.port: "9001"
+
+  mc-init:
+    image: quay.io/minio/mc:latest
+    # healthcheck у minio нет (в образе ubi-micro нет curl) — готовность
+    # обеспечивает retry-цикл в mc-init.sh
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_USER: ${MINIO_APP_USER}
+      MINIO_APP_PASSWORD: ${MINIO_APP_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    volumes:
+      - ./minio/mc-init.sh:/mc-init.sh:ro
+      - ./minio/copilot-uploads-rw.json:/policy/copilot-uploads-rw.json:ro
+    entrypoint: ["/bin/sh", "/mc-init.sh"]
+    networks: [web]
+    restart: "no"
+
+  meeting-copilot:
+    image: ${COPILOT_IMAGE}
+    profiles: [app]
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mc-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_REQUEST_TOPIC: AiMeetingCopilotRequest
+      KAFKA_RESPONSE_TOPIC: AiMeetingCopilotResponse
+      KAFKA_GROUP_ID: ai-meeting-copilot
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_APP_USER}
+      MINIO_SECRET_KEY: ${MINIO_APP_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      AI_API_URL: ${AI_API_URL}
+      AI_API_TOKEN: ${AI_API_TOKEN}
+      OPEN_ROUTER_URL: ${OPEN_ROUTER_URL}
+      OPEN_ROUTER_AUTH_BEARER: ${OPEN_ROUTER_AUTH_BEARER}
+    networks: [web]
+
+  copilot-ui:
+    image: ${COPILOT_UI_IMAGE}
+    profiles: [app]
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mc-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_REQUEST_TOPIC: AiMeetingCopilotRequest
+      KAFKA_RESPONSE_TOPIC: AiMeetingCopilotResponse
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_APP_USER}
+      MINIO_SECRET_KEY: ${MINIO_APP_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      COPILOT_UI_TOKEN: ${COPILOT_UI_TOKEN}
+    networks: [web]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.copilot-ui.rule: Host(`copilot.${DOMAIN}`)
+      traefik.http.routers.copilot-ui.entrypoints: websecure
+      traefik.http.routers.copilot-ui.tls.certresolver: le
+      traefik.http.services.copilot-ui.loadbalancer.server.port: "8080"
