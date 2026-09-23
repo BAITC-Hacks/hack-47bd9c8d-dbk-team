@@ -3,6 +3,7 @@
 import { AlertTriangle, BellRing, Check, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { CommitmentEntry } from "@/lib/commitments-store";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -220,8 +221,19 @@ export function CommitmentsDashboard() {
                     }
                   >
                     <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="whitespace-nowrap font-medium text-navy-800">
+                      {/* items-start: без него inline-flex бейдж растягивается
+                          по ширине колонки и «просрочено на 13 дн.» ломается
+                          на две строки прямо там, куда смотрят в первую очередь. */}
+                      <div className="flex flex-col items-start gap-1">
+                        <span
+                          className={cn(
+                            "font-medium text-navy-800",
+                            // Дату не переносим, а словесный срок из стенограммы
+                            // («до конца следующей недели») — обязательно:
+                            // иначе колонка распухает и выталкивает кнопку.
+                            c.due_date && "whitespace-nowrap",
+                          )}
+                        >
                           {c.due_date ?? c.due_raw}
                         </span>
                         <DeadlineBadge entry={c} />
@@ -234,7 +246,7 @@ export function CommitmentsDashboard() {
                         {c.meeting_id}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="w-40 px-3 py-3 md:w-48">
                       <input
                         type="email"
                         defaultValue={c.assignee_email ?? ""}
@@ -246,7 +258,7 @@ export function CommitmentsDashboard() {
                             patch(c, { assignee_email: next });
                           }
                         }}
-                        className="w-32 rounded border border-line bg-white px-2 py-1 text-xs text-zinc-700 placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy-600 md:w-44"
+                        className="w-full min-w-0 rounded border border-line bg-white px-2 py-1 text-xs text-zinc-700 placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy-600"
                       />
                     </td>
                     <td className="px-4 py-3">

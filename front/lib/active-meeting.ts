@@ -15,6 +15,7 @@
  */
 
 const KEY = "meeting-copilot:active";
+const LANG_KEY = "meeting-copilot:lang";
 
 export interface ActiveMeeting {
   meetingId: string;
@@ -42,6 +43,23 @@ export function rememberActiveMeeting(meetingId: string, startedAt: string) {
     window.localStorage.setItem(KEY, JSON.stringify({ meetingId, startedAt }));
   } catch {
     // приватный режим или запрещённые данные сайта — работаем без памяти
+  }
+}
+
+/** Выбранный язык протокола: переживает обновление страницы, как и сама встреча. */
+export function readLang(): string | null {
+  try {
+    return window.localStorage.getItem(LANG_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberLang(lang: string) {
+  try {
+    window.localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // приватный режим — работаем без памяти
   }
 }
 

@@ -45,5 +45,9 @@ services:
       # иначе загрузка падает с AccessDenied.
       RECORDINGS_BUCKET: ${MINIO_BUCKET}
       RESULTS_BUCKET: results
+      # Перевод протокола считается той же моделью, что и разбор.
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-https://vllm.aibots.kz/v1}
+      VLLM_API_KEY: ${VLLM_API_KEY}
+      VLLM_MODEL: ${VLLM_MODEL:-qwen3-vl-30b-instruct}
     ports:
       - "127.0.0.1:8181:3000"

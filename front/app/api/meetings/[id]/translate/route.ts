@@ -1,23 +1,26 @@
 import { NextResponse } from "next/server";
 import { getResultJson } from "@/lib/minio";
 import { isLang } from "@/lib/languages";
-import { translateResult } from "@/lib/translate";
+import {
+  isTranslating,
+  readTranslation,
+  startTranslation,
+} from "@/lib/translate";
 import type { MeetingResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Перевод считается на своей модели и занимает десятки секунд на длинном
-// саммари; результат кэшируется, поэтому долгим бывает только первый запрос.
-export const maxDuration = 300;
+
+// Перевод длинного саммари занимает около двух минут, а прокси перед нами
+// рвёт запрос на сотне секунд. Поэтому POST только ставит работу в очередь,
+// а интерфейс опрашивает GET до готовности.
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { searchParams } = new URL(req.url);
-  const lang = searchParams.get("lang");
-
+  const lang = new URL(req.url).searchParams.get("lang");
   if (!isLang(lang)) {
     return NextResponse.json(
       { error: "Укажите язык: ru, kk или en." },
@@ -25,15 +28,39 @@ export async function POST(
     );
   }
 
+  const ready = await readTranslation(id, lang);
+  if (ready) return NextResponse.json({ state: "ready", result: ready });
+
   try {
     const original = await getResultJson<MeetingResult>(`${id}/result.json`);
-    const translated = await translateResult(original, lang);
-    return NextResponse.json(translated);
+    startTranslation(original, lang);
+    return NextResponse.json({ state: "pending" }, { status: 202 });
   } catch (err) {
-    console.error("[translate] failed", err);
+    console.error("[translate] не удалось прочитать протокол", err);
     return NextResponse.json(
-      { error: "Не удалось перевести протокол. Попробуйте ещё раз." },
-      { status: 502 },
+      { error: "Протокол не найден в хранилище." },
+      { status: 404 },
     );
   }
+}
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const lang = new URL(req.url).searchParams.get("lang");
+  if (!isLang(lang)) {
+    return NextResponse.json(
+      { error: "Укажите язык: ru, kk или en." },
+      { status: 400 },
+    );
+  }
+
+  const ready = await readTranslation(id, lang);
+  if (ready) return NextResponse.json({ state: "ready", result: ready });
+  if (isTranslating(id, lang)) {
+    return NextResponse.json({ state: "pending" }, { status: 202 });
+  }
+  return NextResponse.json({ state: "idle" }, { status: 404 });
 }

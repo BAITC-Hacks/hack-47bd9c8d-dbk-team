@@ -83,6 +83,43 @@ interface Payload {
   }[];
 }
 
+// Перевод длинного саммари занимает около двух минут, а прокси рвёт запрос
+// на сотне секунд. Поэтому работа идёт в фоне: запрос её запускает и сразу
+// отвечает, интерфейс опрашивает готовность. Карта нужна, чтобы повторные
+// нажатия не запускали второй счёт того же самого.
+const globalRef = globalThis as unknown as {
+  __translations?: Map<string, Promise<MeetingResult>>;
+};
+const inFlight = (globalRef.__translations ??= new Map());
+
+function jobKey(meetingId: string, lang: Lang) {
+  return `${meetingId}:${lang}`;
+}
+
+/** Готовый перевод, если он уже посчитан. */
+export async function readTranslation(
+  meetingId: string,
+  lang: Lang,
+): Promise<MeetingResult | null> {
+  return readCache(meetingId, lang);
+}
+
+/** Считается ли перевод прямо сейчас. */
+export function isTranslating(meetingId: string, lang: Lang): boolean {
+  return inFlight.has(jobKey(meetingId, lang));
+}
+
+/** Запускает перевод в фоне и сразу возвращает управление. */
+export function startTranslation(result: MeetingResult, lang: Lang): void {
+  const key = jobKey(result.meeting_id, lang);
+  if (inFlight.has(key)) return;
+  const job = translateResult(result, lang).finally(() => inFlight.delete(key));
+  // Ошибка обрабатывается опросом: перевода просто не появится, и интерфейс
+  // скажет об этом. Здесь глушим, чтобы не было необработанного отказа.
+  job.catch(() => {});
+  inFlight.set(key, job);
+}
+
 export async function translateResult(
   result: MeetingResult,
   lang: Lang,

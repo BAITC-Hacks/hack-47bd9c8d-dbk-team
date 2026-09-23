@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MeetingResult } from "@/lib/types";
-import type { Lang } from "@/lib/languages";
+import { isLang, type Lang } from "@/lib/languages";
+import { readLang, rememberLang } from "@/lib/active-meeting";
 import { CommitmentsTable } from "@/components/commitments-table";
 import { ExportButtons } from "@/components/export-buttons";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -13,6 +14,7 @@ import { WarningsBanner } from "@/components/warnings-banner";
 
 export function MeetingResultView({ result }: { result: MeetingResult }) {
   const [lang, setLang] = useState<Lang>("ru");
+  const [restored, setRestored] = useState(false);
   const [shown, setShown] = useState<MeetingResult>(result);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +25,16 @@ export function MeetingResultView({ result }: { result: MeetingResult }) {
     () => new Map([["ru", result]]),
   );
 
+  // Язык выбирают один раз и читают протокол дальше — после обновления
+  // страницы он не должен сбрасываться на русский.
+  useEffect(() => {
+    if (restored) return;
+    setRestored(true);
+    const saved = readLang();
+    if (isLang(saved) && saved !== "ru") void switchLang(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored]);
+
   async function switchLang(next: Lang) {
     if (next === lang || busy) return;
     setError(null);
@@ -30,23 +42,38 @@ export function MeetingResultView({ result }: { result: MeetingResult }) {
     const ready = cache.get(next);
     if (ready) {
       setLang(next);
+      rememberLang(next);
       setShown(ready);
       return;
     }
 
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/meetings/${result.meeting_id}/translate?lang=${next}`,
-        { method: "POST" },
-      );
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error ?? "translate failed");
-      cache.set(next, body as MeetingResult);
+      // Перевод считается около двух минут, а прокси рвёт запрос на сотне
+      // секунд. Поэтому запускаем работу и опрашиваем готовность. Уже
+      // посчитанный перевод возвращается сразу же, первым ответом.
+      const url = `/api/meetings/${result.meeting_id}/translate?lang=${next}`;
+      let body = await (await fetch(url, { method: "POST" })).json();
+
+      for (let i = 0; body.state === "pending" && i < 100; i += 1) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const poll = await fetch(url);
+        body = await poll.json();
+        if (poll.status === 404) throw new Error("перевод не запустился");
+      }
+      if (body.state !== "ready" || !body.result) {
+        throw new Error("перевод не готов");
+      }
+
+      cache.set(next, body.result as MeetingResult);
       setLang(next);
-      setShown(body as MeetingResult);
+      rememberLang(next);
+      setShown(body.result as MeetingResult);
     } catch {
-      setError("Не удалось перевести протокол. Попробуйте ещё раз.");
+      setError(
+        "Не удалось перевести протокол. Перевод длинного саммари занимает " +
+          "до двух минут — попробуйте ещё раз, начатая работа не пропадёт.",
+      );
     } finally {
       setBusy(false);
     }
