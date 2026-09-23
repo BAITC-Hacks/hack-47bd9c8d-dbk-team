@@ -1,0 +1,62 @@
+# LiteLLM bridge: Codex CLI speaks only Responses API, GLM gateway only Chat Completions. Baiterek speaks Responses natively -> codex connects direct.
+# Run: tools/llm-bridge.sh   (reads keys from .env)
+model_list:
+  - model_name: glm-5.3-flash
+    litellm_params:
+      model: openai/zai-org/GLM-5.3-Flash
+      api_base: os.environ/GLM_BASE
+      api_key: os.environ/GLM_AUTH_BEARER
+      use_chat_completions_api: true
+  - model_name: glm-5.3
+    litellm_params:
+      model: openai/zai-org/GLM-5.3
+      api_base: os.environ/GLM_BASE
+      api_key: os.environ/GLM_AUTH_BEARER
+      use_chat_completions_api: true
+  # Baiterek models proxied through the bridge too, so council + codex
+  # reviewers get one endpoint for everything.
+  - model_name: kimi-k3
+    litellm_params:
+      model: openai/kimi-k3
+      api_base: os.environ/BAITEREK_LLM_BASE
+      api_key: os.environ/BAITEREK_LLM_GATEWAY_API_KEY
+      use_chat_completions_api: true
+  - model_name: deepseek-v4-1-flash
+    litellm_params:
+      model: openai/deepseek-v4-1-flash
+      api_base: os.environ/BAITEREK_LLM_BASE
+      api_key: os.environ/BAITEREK_LLM_GATEWAY_API_KEY
+      use_chat_completions_api: true
+  - model_name: qwen3-8-27b-fp8
+    litellm_params:
+      model: openai/qwen3-8-27b-fp8
+      api_base: os.environ/BAITEREK_LLM_BASE
+      api_key: os.environ/BAITEREK_LLM_GATEWAY_API_KEY
+      use_chat_completions_api: true
+  - model_name: qwen3-embedding-4b
+    litellm_params:
+      model: openai/qwen3-embedding-4b
+      api_base: os.environ/BAITEREK_LLM_BASE
+      api_key: os.environ/BAITEREK_LLM_GATEWAY_API_KEY
+  - model_name: qwen3-vl-embedding-8b
+    litellm_params:
+      model: openai/qwen3-vl-embedding-8b
+      api_base: os.environ/BAITEREK_LLM_BASE
+      api_key: os.environ/BAITEREK_LLM_GATEWAY_API_KEY
+  # Hackathon-day keys: uncomment when issued.
+  # - model_name: gpt-5
+  #   litellm_params:
+  #     model: openai/gpt-5
+  #     api_key: os.environ/OPENAI_API_KEY
+  # - model_name: claude-opus-5
+  #   litellm_params:
+  #     model: anthropic/claude-opus-5
+  #     api_key: os.environ/ANTHROPIC_API_KEY
+  # NVIDIA Build (build.nvidia.com API key from organizers' activation doc):
+  # - model_name: nvidia-deepseek
+  #   litellm_params:
+  #     model: openai/deepseek-ai/deepseek-v3.1-terminus
+  #     api_base: https://integrate.api.nvidia.com/v1
+  #     api_key: os.environ/NVIDIA_API_KEY
+litellm_settings:
+  drop_params: true

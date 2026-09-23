@@ -1,0 +1,10 @@
+# Append to ~/.ssh/config (needs cloudflared installed; CLOUDFLARE_CLIENT_ID/SECRET
+# from .env exported as CLOUDFLARE_ACCESS_CLIENT_ID/SECRET when connecting).
+# Ask the team lead to add your ~/.ssh/id_ed25519.pub to the server.
+
+Host docker-server-access
+    HostName ssh.aibots.kz
+    User sergey
+    IdentityFile ~/.ssh/id_ed25519
+    ProxyCommand cloudflared access ssh --hostname %h
+    StrictHostKeyChecking accept-new

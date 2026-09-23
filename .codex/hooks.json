@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f '/home/sergey/.agents/skills/impeccable/scripts/impeccable' ] || '/home/sergey/.agents/skills/impeccable/scripts/impeccable' hook",
+            "commandWindows": "if exist \"/home/sergey/.agents/skills/impeccable/scripts/impeccable.cmd\" (\"/home/sergey/.agents/skills/impeccable/scripts/impeccable.cmd\" hook & exit /b)",
+            "timeout": 5,
+            "statusMessage": "Checking UI changes"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|shell|exec_command|local_shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f \"/home/sergey/.claude/hooks/gbrain-sync.sh\" ] || bash \"/home/sergey/.claude/hooks/gbrain-sync.sh\"",
+            "timeout": 5,
+            "statusMessage": "Syncing brain"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|apply_patch|Bash|shell|exec_command|local_shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f \"/home/sergey/.claude/hooks/god-file-warn.py\" ] || python3 \"/home/sergey/.claude/hooks/god-file-warn.py\"",
+            "timeout": 5,
+            "statusMessage": "God-file check"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f '/home/sergey/.agents/skills/impeccable/scripts/impeccable' ] || '/home/sergey/.agents/skills/impeccable/scripts/impeccable' hook",
+            "commandWindows": "if exist \"/home/sergey/.agents/skills/impeccable/scripts/impeccable.cmd\" (\"/home/sergey/.agents/skills/impeccable/scripts/impeccable.cmd\" hook & exit /b)",
+            "timeout": 30,
+            "statusMessage": "Design deep pass"
+          }
+        ]
+      }
+    ]
+  }
+}

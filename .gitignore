@@ -1,0 +1,52 @@
+# --- secrets (never in GitHub — organizers' rule) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- machine-local agent state ---
+.gbrain-owner.json
+.claude
+.codex/*
+!.codex/hooks.json
+.agents
+skills-lock.json
+
+# --- tool clones (install via tools/dev-workflow-setup.sh) ---
+tools/*
+!tools/*.sh
+!tools/*.py
+!tools/*.yaml
+!tools/dev-workflow/
+
+# --- python ---
+venv
+.venv
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# --- node / frontend (hackathon app) ---
+node_modules/
+.next/
+dist/
+build/
+
+# --- misc ---
+*.log
+data/
+.DS_Store
+.idea/
+.vscode/
+docker-compose.override.yml
+
+# --- internal playbooks (distributed via tools/dev-workflow/, not for judges) ---
+/AGENTS.md
+/HACKATHON.md
+
+# gbrain page materialization (lives in the brain, not in git)
+decisions/
+
+# pre-written app code lives outside the repo until day X (organizers: infra only)
+/template/
