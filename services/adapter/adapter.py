@@ -123,7 +123,11 @@ def parse_commitments(summary: str) -> list[dict]:
         # («Срочно · Договорная работа»). Пункт из раздела «Дополнительно».
         classification = cells[3] if len(cells) > 3 else ""
         urgency, area = split_classification(classification)
-        out.append({"id": f"c{len(out)+1}", "assignee": who or None,
+        # Ответственный приходит ярлыком, если имя не определено по тексту.
+        # Приводим к тому же виду, что и в транскрипте, чтобы в протоколе не
+        # соседствовали «Говорящий 2» и «Speaker 1».
+        who_shown = human_label(who) if who.lower().startswith("speaker") else who
+        out.append({"id": f"c{len(out)+1}", "assignee": who_shown or None,
                     "assignee_speaker": who if who.lower().startswith("speaker") else None,
                     "due_date": to_iso(due_raw), "due_raw": due_raw,
                     "text": text, "quote": text, "t_start": None,
@@ -144,6 +148,35 @@ def parse_commitments(summary: str) -> list[dict]:
 def _prefix_of(object_key: str) -> str:
     """Обработчик забирает ПАПКУ целиком, интерфейс присылает ключ файла."""
     return object_key.rsplit("/", 1)[0] + "/" if "/" in object_key else ""
+
+
+def to_seconds(v) -> float:
+    """Время в секундах числом.
+
+    Обработчик отдаёт «00:01:15.520», а контракт и интерфейс ждут число:
+    formatTime() на строке даёт NaN:NaN, и таймкоды в протоколе пропадают.
+    """
+    if isinstance(v, (int, float)):
+        return float(v)
+    if not v:
+        return 0.0
+    parts = str(v).split(":")
+    try:
+        sec = float(parts[-1])
+        if len(parts) > 1:
+            sec += int(parts[-2]) * 60
+        if len(parts) > 2:
+            sec += int(parts[-3]) * 3600
+        return sec
+    except ValueError:
+        return 0.0
+
+
+def human_label(label: str) -> str:
+    """«Speaker 0» → «Говорящий 1». Ярлык условен и устойчив только внутри
+    одной записи, но показывать его лучше, чем пустое поле."""
+    digits = "".join(c for c in label if c.isdigit())
+    return f"Говорящий {int(digits) + 1}" if digits else label
 
 
 def _read(bucket: str, key: str) -> str | None:
@@ -171,10 +204,12 @@ def build_result(meeting_id: str, prefix: str) -> dict:
                 turns = turns.get("segments") or turns.get("turns") or []
             for t in turns:
                 label = str(t.get("speaker", "SPK_0"))
-                speakers.setdefault(label, {"label": label, "name": None,
+                name = human_label(label)
+                speakers.setdefault(label, {"label": label, "name": name,
                                             "resolved_by": "diarization", "merged": False})
-                transcript.append({"speaker": label, "name": None,
-                                   "t_start": t.get("start", 0.0), "t_end": t.get("end", 0.0),
+                transcript.append({"speaker": label, "name": name,
+                                   "t_start": to_seconds(t.get("start")),
+                                   "t_end": to_seconds(t.get("end")),
                                    "text": t.get("text", "")})
         except Exception as e:
             log.warning("transcript.json не разобран: %s", e)
