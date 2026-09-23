@@ -21,13 +21,14 @@ if [ ! -f .env ]; then
 fi
 set -a; . ./.env; set +a
 
-echo "== 1b/8 network: Baiterek direct or via llm.aibots.kz tunnel (no VPN needed)"
+echo "== 1b/8 network: Baiterek reachability"
 if curl -s -o /dev/null --max-time 6 https://llm.baiterek.gov.kz/v1/models -H "Authorization: Bearer $BAITEREK_LLM_GATEWAY_API_KEY"; then
   BRIDGE_BASE="http://127.0.0.1:4000/v1"; DIRECT_PROVIDER="baiterek"
-  echo "  Baiterek reachable directly — local bridge"
+  echo "  Baiterek reachable — local bridge"
 else
-  BRIDGE_BASE="https://llm.aibots.kz/v1"; DIRECT_PROVIDER="bridge"
-  echo "  no VPN — using cloudflare tunnel to lead's bridge ($BRIDGE_BASE)"
+  BRIDGE_BASE="http://127.0.0.1:4000/v1"; DIRECT_PROVIDER="baiterek"
+  echo "  WARNING: Baiterek unreachable from this machine."
+  echo "  Corporate models unavailable here — use the issued OpenAI key via codex."
 fi
 export BRIDGE_BASE
 

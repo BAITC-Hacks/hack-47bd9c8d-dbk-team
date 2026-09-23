@@ -1,0 +1,45 @@
+# Secrets / local env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+.claude/settings.local.json
+
+# OS
+.DS_Store
+
+# Media / data (recordings, transcripts, generated artifacts)
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.webm
+*.vtt
+*.zip
+# Результаты прогонов пайплайна — генерируются, в git не нужны
+artifacts/
+
+# Тестовые записи для прогона пайплайна лежат в git намеренно.
+# Правила выше (*.mp3, *.vtt и т.д.) и `data/` из корневого .gitignore
+# перекрываются этими двумя строками: сначала снимаем игнор с самого
+# каталога, иначе git не заглянет внутрь и негативные правила не сработают,
+# затем — со всего его содержимого.
+!data/
+!data/**
+
+# Misc saved pages / large unrelated exports
+*.html
+*_files/
+
+tests/

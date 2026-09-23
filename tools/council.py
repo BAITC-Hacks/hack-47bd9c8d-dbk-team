@@ -22,7 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 BASE = os.environ.get("COUNCIL_BASE_URL") or os.environ.get("BRIDGE_BASE") or "http://localhost:4000/v1"
 KEY = os.environ.get("COUNCIL_API_KEY") or os.environ.get("LITELLM_API_KEY") or "sk-bridge"
-# Cloudflare bot check 403s python-urllib — needed when BASE goes via llm.aibots.kz
+# Cloudflare bot check 403s python-urllib — keep an explicit UA
 UA = {"User-Agent": "curl/8.0"}
 MODELS = os.environ.get("COUNCIL_MODELS", "kimi-k3,deepseek-v4-1-flash,qwen3-8-27b-fp8,claude-opus").split(",")  # glm-flash out while its relay is down
 CHAIRMAN = os.environ.get("COUNCIL_CHAIRMAN", "deepseek-v4-1-flash")

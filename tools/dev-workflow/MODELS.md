@@ -62,12 +62,3 @@ python3 tools/council.py --self-test       # проверка, что всё ж�
 
 Codex переключаем на выданный OpenAI-ключ (дефолтный профиль), разработка не встаёт.
 Каунсил и gbrain-энричмент подождут — это инструментарий, не продукт.
-
-## Без VPN: мост через Cloudflare-туннель
-
-Шлюз Baiterek доступен только из VPN. Для машин без VPN поднят туннель на машине лида:
-`https://llm.aibots.kz/v1` → его LiteLLM-мост (все 5 моделей, тот же LITELLM_API_KEY).
-Setup сам определяет доступность Baiterek: нет VPN — профили codex (kimi/deepseek),
-провайдер bridge в config.toml, gbrain и council автоматически идут через туннель.
-Ручной запуск council без VPN: `COUNCIL_BASE_URL=https://llm.aibots.kz/v1 python3 tools/council.py "вопрос"`.
-Зависимость: машина лида должна быть онлайн (в день X — будет).

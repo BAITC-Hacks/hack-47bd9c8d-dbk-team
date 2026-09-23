@@ -48,5 +48,6 @@ docker-compose.override.yml
 # gbrain page materialization (lives in the brain, not in git)
 decisions/
 
-# pre-written app code lives outside the repo until day X (organizers: infra only)
-/template/
+
+# gbrain opt-in marker: machine-local, must not reach worktrees via checkout
+.gbrain
