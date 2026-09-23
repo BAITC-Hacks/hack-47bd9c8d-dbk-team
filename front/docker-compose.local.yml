@@ -1,0 +1,7 @@
+# Локальный запуск без traefik:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+# Требует поднятой сети meeting-copilot_web (стек infrastructure/).
+services:
+  front:
+    ports:
+      - "127.0.0.1:3000:3000"

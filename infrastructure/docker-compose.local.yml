@@ -1,0 +1,19 @@
+# Локальный запуск без публичного домена:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+# traefik не стартует (профиль tls), сервисы доступны напрямую по loopback-портам.
+services:
+  traefik:
+    profiles: [tls]
+
+  kafka-ui:
+    ports:
+      - "127.0.0.1:8181:8080"
+
+  minio:
+    # запиненный hotfix-образ minio — только amd64; на Apple Silicon
+    # запускаем через эмуляцию (OrbStack/Rosetta). На x86-машине строку
+    # platform можно убрать.
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:9000:9000"   # S3 API
+      - "127.0.0.1:9001:9001"   # console

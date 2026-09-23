@@ -40,9 +40,44 @@ infrastructure/
 - Открытые порты 80 и 443 (HTTP-01 challenge Let's Encrypt).
 
 > Полностью локально (без домена и открытых портов) LE не сработает.
-> Варианты: DNS-01 challenge (нужны креды DNS-провайдера в traefik),
-> самоподписанный сертификат, или поднять стек без traefik, пробросив
-> порты сервисов напрямую (`ports:` вместо labels).
+> Для этого случая есть готовый override `docker-compose.local.yml` —
+> см. «Локальный запуск без домена» ниже.
+
+## Локальный запуск без домена (Mac/Linux, для разработки)
+
+Override `docker-compose.local.yml` отключает traefik (профиль `tls`) и
+пробрасывает сервисы на loopback; фронт (`front/`) подключается к общей
+сети стека:
+
+```bash
+cd infrastructure
+cp .env.example .env    # для локали достаточно дефолтов; DOMAIN=localhost
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+
+cd ../front
+cp .env.example .env    # MINIO_* креды = креды из infrastructure/.env
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+```
+
+Локальные точки входа:
+
+| Сервис | URL |
+|---|---|
+| Фронт (Next.js) | `http://localhost:3000` |
+| Kafbat UI | `http://localhost:8181` (admin / `KAFKA_UI_PASSWORD`) |
+| MinIO console | `http://localhost:9001` (root-креды из `.env`) |
+| MinIO S3 API | `http://localhost:9000` |
+| Kafka с хоста | `localhost:9094` (PLAINTEXT) |
+
+Особенности локали:
+
+- **Apple Silicon (arm64)**: запиненный hotfix-образ MinIO собран только
+  под amd64 — в `docker-compose.local.yml` для minio задан
+  `platform: linux/amd64` (эмуляция OrbStack/Rosetta). На x86-машине
+  строку можно убрать.
+- Фронт использует контракт `meetings.*` / бакеты `recordings`,
+  `results`; воркер — `AiMeetingCopilot*` / `uploads`. Оба набора
+  создаются init-контейнерами (переменные `KAFKA_TOPICS`, `MINIO_BUCKETS`).
 
 ### Запуск
 
