@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-Проверки доступности зависимостей kafka_service.py: Kafka, MinIO, ai.kdb.kz
-(whisper). Используются при старте сервиса, чтобы не начинать обработку
+Проверки доступности зависимостей kafka_service.py: Kafka, MinIO и речевая
+служба. Используются при старте сервиса, чтобы не начинать обработку
 сообщений с заведомо неработающими зависимостями.
+
+Речевая служба выбирается в config.DEFAULT_PROVIDER:
+    speech_stack - свой стек (stt.aibots.kz): пробы /health и /health/diar,
+                   это независимые блоки конфигурации, проверяются обе;
+    kdb          - ai.kdb.kz: проба /api/whisper/health.
 """
 
 import logging
@@ -47,7 +52,88 @@ def check_minio(client: Minio) -> Optional[str]:
         return f"MinIO недоступен ({config.MINIO_ENDPOINT}): {e}"
 
 
-def check_whisper() -> Optional[str]:
+# Шлюз speech_stack стоит за Cloudflare, который отдаёт 403 на User-Agent
+# по умолчанию у python-клиентов.
+USER_AGENT = "dbk-meeting-copilot/1.0"
+
+SPEECH_STACK_PROVIDERS = ("speech_stack", "speech-stack", "stt", "aibots")
+
+
+def _check_speech_stack_probe(path: str, label: str) -> Optional[str]:
+    """
+    Дёргает пробу шлюза speech_stack. Пробы идут до проверки токена и
+    спрашивают реальную службу, а не отвечают 200 сами.
+    """
+    url = f"{config.SPEECH_STACK_URL.rstrip('/')}{path}"
+    try:
+        resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=10)
+        resp.raise_for_status()
+        payload = resp.json()
+    except Exception as e:
+        return f"{label} недоступна ({url}): {e}"
+
+    # Диаризация до загрузки моделей честно отвечает loading — это не
+    # готовность, ждать надо именно смены статуса, а не появления процесса.
+    status = payload.get("status")
+    if status and status != "healthy":
+        return f"{label} отвечает, но не готова: status={status} ({url})"
+    return None
+
+
+def _check_speech_stack_token() -> Optional[str]:
+    """
+    Проверяет, что токен принимается: GET /v1/models.
+
+    Пробы /health идут ДО проверки токена и проходят с любым — даже с пустым.
+    Без этой проверки сервис стартовал бы с неверным STT_TOKEN и падал бы
+    только на первой записи, уже потратив время на скачивание и конвертацию.
+    """
+    url = f"{config.SPEECH_STACK_URL.rstrip('/')}/v1/models"
+    try:
+        resp = requests.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {config.SPEECH_STACK_TOKEN}",
+                "User-Agent": USER_AGENT,
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        return f"Речевой стек недоступен ({url}): {e}"
+
+    if resp.status_code == 401:
+        return (
+            f"Речевой стек отклонил STT_TOKEN ({url}, HTTP 401). "
+            "Шлюз закрывает 401 и неизвестные пути, так что проверьте заодно "
+            "SPEECH_STACK_URL."
+        )
+    if resp.status_code != 200:
+        return f"Речевой стек ответил HTTP {resp.status_code} на {url}: {resp.text[:200]}"
+    return None
+
+
+def check_speech_stack() -> Optional[str]:
+    """
+    Проверяет собственный речевой стек: распознавание, диаризацию и токен.
+
+    Распознавание и диаризация — разные блоки конфигурации и ломаются
+    независимо, поэтому проверяются обе пробы, а не одна.
+    """
+    if not config.SPEECH_STACK_TOKEN:
+        return (
+            "Не задан STT_TOKEN — речевой стек "
+            f"({config.SPEECH_STACK_URL}) не сконфигурирован"
+        )
+
+    for path, label in (("/health", "Проба распознавания"), ("/health/diar", "Проба диаризации")):
+        error = _check_speech_stack_probe(path, label)
+        if error:
+            return error
+
+    return _check_speech_stack_token()
+
+
+def check_kdb() -> Optional[str]:
     """Проверяет голосовой стек ai.kdb.kz через /api/whisper/health."""
     if not config.AI_KDB_TOKEN:
         return "Не задан AI_KDB_TOKEN — сервис распознавания ai.kdb.kz не сконфигурирован"
@@ -63,24 +149,39 @@ def check_whisper() -> Optional[str]:
         return f"Сервис распознавания ai.kdb.kz недоступен ({config.AI_KDB_URL}): {e}"
 
 
+def check_whisper() -> Optional[str]:
+    """Проверяет ту речевую службу, которая выбрана в DEFAULT_PROVIDER."""
+    if config.DEFAULT_PROVIDER.lower() in SPEECH_STACK_PROVIDERS:
+        return check_speech_stack()
+    return check_kdb()
+
+
+def speech_provider_label() -> str:
+    """Человекочитаемое имя выбранной речевой службы — для логов и ошибок."""
+    if config.DEFAULT_PROVIDER.lower() in SPEECH_STACK_PROVIDERS:
+        return f"speech_stack ({config.SPEECH_STACK_URL})"
+    return f"ai.kdb.kz ({config.AI_KDB_URL})"
+
+
 def run_startup_checks(producer: KafkaProducer, minio_client: Minio) -> bool:
     """
-    Проверяет Kafka, MinIO и ai.kdb.kz (whisper) перед началом обработки.
+    Проверяет Kafka, MinIO и речевую службу перед началом обработки.
     Kafka уже проверена раньше (иначе продюсера бы не было) — здесь только
-    MinIO и whisper, ошибки по которым можно и нужно отправить в Kafka.
+    MinIO и распознавание, ошибки по которым можно и нужно отправить в Kafka.
     Возвращает True, если можно продолжать работу.
     """
+    speech_label = speech_provider_label()
     errors = []
     for label, error in (
         ("MinIO", check_minio(minio_client)),
-        ("ai.kdb.kz (whisper)", check_whisper()),
+        (speech_label, check_whisper()),
     ):
         if error:
             errors.append(RecognitionError(code=ErrorCode.SERVICE_UNAVAILABLE, message=error))
             log.critical("Проверка '%s' не пройдена: %s", label, error)
 
     if not errors:
-        log.info("Проверка зависимостей (Kafka/MinIO/ai.kdb.kz) пройдена успешно")
+        log.info("Проверка зависимостей (Kafka/MinIO/%s) пройдена успешно", speech_label)
         return True
 
     response = RecognitionResponse(
