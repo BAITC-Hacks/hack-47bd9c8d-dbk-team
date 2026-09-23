@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 
 echo "== 1/4 gbrain: deepseek chat/expansion via Baiterek"
-# BRIDGE_BASE is exported by dev-workflow-setup.sh (tunnel URL when no VPN);
+# BRIDGE_BASE is exported by dev-workflow-setup.sh;
 # standalone runs fall back to the local bridge from .env
 BRIDGE="${BRIDGE_BASE:-$LITELLM_BASE_URL}"
 gbrain config set sync.write_through off

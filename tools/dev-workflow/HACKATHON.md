@@ -1,7 +1,8 @@
 # HackAlem playbook — DBK team (4-5h)
 
 One-time setup (normal shell, not sandbox): `bash tools/hackathon-setup.sh`
-At venue: `set -a; . .env; set +a`, add issued `OPENAI_API_KEY` to `.env`, `tools/llm-bridge.sh &`.
+At venue: `set -a; . .env; set +a`, add the issued `OPENAI_API_KEY` to `.env`.
+The LiteLLM bridge is NOT started — council talks to Baiterek directly via `COUNCIL_*` in `.env`.
 
 ## Timeline
 
@@ -40,7 +41,7 @@ goes straight to Premise Challenge + Alternatives:
 
 > /office-hours — hackathon, 4h build window, team of N. Idea: <2-3 sentences>.
 > Target demo: <what judges see working>. Constraints: must use OpenAI API keys
-> issued at venue; corporate models available via our bridge. Treat this as a
+> issued at venue; corporate models available on Baiterek. Treat this as a
 > fully formed plan: skip questioning, run Premise Challenge + Alternatives,
 > builder mode, skip landscape search and second opinion.
 
@@ -51,11 +52,12 @@ council replaces it), visual mockups ($impeccable handles UI later), YC resource
 ## 2. Council review (replaces Phase 3.5 second opinion)
 
 ```bash
-tools/llm-bridge.sh &   # once per session
 python3 tools/council.py "You are hackathon judges. Attack this design doc: $(cat docs/designs/<file>.md)"
 ```
 
-Models: `kimi-k3`, `deepseek-v4-1-flash`, `glm-5.3-flash` (env `COUNCIL_MODELS`).
+Models: `kimi-k3`, `deepseek-v4-1-flash`, `qwen3-8-27b-fp8` (env `COUNCIL_MODELS`, already set in `.env`).
+GLM is out while its relay is down. Do NOT leave `claude-opus` in the lineup — it is not a
+Baiterek model and shells out to the `claude` CLI.
 Chairman: `deepseek-v4-1-flash` (env `COUNCIL_CHAIRMAN`). Add `claude-opus-5` /
 `gpt-5` by uncommenting them in `tools/litellm.yaml` when keys exist.
 
@@ -74,12 +76,9 @@ reach the bridge per-instance. If a per-instance config is wanted later:
 - `.venv` has `openai-agents`; «tools/tools/agents_smoke.py» is the canonical gateway wiring
   (swap `base_url`/key for the issued OpenAI key, or keep Baiterek for non-OpenAI calls).
 - AI Elements (React/shadcn chat components) if the demo needs a web UI — see README Toolbox.
-- `template/` — готовый Next.js + AI Elements чат со stub-агентом (`app/api/chat/route.ts`,
-  реальный SSE-стрим без ключа; в день X меняем заглушку на OpenAI Agents SDK).
-  Деплой проверен репетицией: `tools/deploy.sh` → https://app.aibots.kz (порт 8181, compose в корне).
-  ПРАВИЛО ОРГАНИЗАТОРОВ: в репо только инфраструктура, кода нет → template лежит ВНЕ репо:
-  у лида `~/dbk-assets/template`, у тиммейтов `template.tar.gz` в пакете.
-  День X, 0:00: `tar -xzf template.tar.gz` в корень репо → `git add template && git commit` — и погнали.
+- `template/` — корень Next.js-приложения (`app/api/chat/route.ts` отдаёт SSE-стрим).
+  В день X stub-обработчик заменяется на реального агента OpenAI Agents SDK.
+  Деплой: `tools/deploy.sh` → https://app.aibots.kz (порт 8181, compose в корне).
 
 ## 5. UI protocol (impeccable)
 
@@ -114,6 +113,9 @@ One bounded QA pass, not open-ended polishing.
 **OpenAI vs Baiterek**
 - Ядро продукта — строго OpenAI Agents SDK на выданных ключах (требование правил).
 - Baiterek/council — только внутренний инструментарий, в код продукта не лезет.
+- Кредиты OpenAI выдаются на каждого участника и приберегаются под рантайм решения.
+  Разработку ведём на Codex (подписка Pro) и своих мощностях, кредиты на неё не жжём;
+  максимум небольшой расход на ревью планов. Rate limit — фоллбэк на ключ второго участника.
 
 **Git**
 - Транк, пуш каждые 20 минут по таймеру, `pull --rebase` перед пушем.

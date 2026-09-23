@@ -9,10 +9,12 @@ if [ $# -ge 1 ]; then T0=$(date -d "$1" +%s); else T0=$(date +%s); fi
 
 # minutes-from-T0 → stage message (fired once each)
 STAGES=(
-  "0|🚀 0:00 СТАРТ. Выбор кейса — 15 минут, нет консенсуса = решает лид"
+  "0|🚀 0:00 СТАРТ = T+0. Коммиты РАЗБЛОКИРОВАНЫ. Лид: git add -A, ОДИН коммит, пушит ПЕРВЫМ. Остальные ждут отмашки"
+  "2|📋 0:02 Выбор кейса — 15 минут, нет консенсуса = решает лид"
   "15|🧠 0:15 office-hours fast path → дизайн-док → council-review (30 мин)"
-  "45|⚠️ 0:45 hello world через весь пайплайн. ГЕЙТ 1: деплой на app.aibots.kz до 1:00"
-  "60|🔨 1:00 must-скоуп: агентное ядро + UI параллельно. Шаблон уже в репо?"
+  "45|📨 0:45 РАЗДАЧА: лид ставит status: ready в .planning/tasks/{ruslan,anton}.md, коммит+пуш. Остальные: git pull"
+  "47|⚠️ 0:47 hello world через весь пайплайн. ГЕЙТ 1: деплой на app.aibots.kz до 1:00"
+  "60|🔨 1:00 must-скоуп: агентное ядро + UI параллельно. Каждый в своей worktree-ветке"
   "180|🔗 3:00 интеграция end-to-end + первый прогон демо-сценария"
   "210|✨ 3:30 should-скоуп ТОЛЬКО если must зелёный. Иначе чиним must"
   "255|🧊 4:15 КОД-ФРИЗ (ГЕЙТ 2). README, слайды, репетиция демо х2"
@@ -52,7 +54,7 @@ while true; do
   # hourly personal-commit check (at :00 of each hour)
   if [ "$ELAPSED" -gt 0 ] && [ $((ELAPSED % 60)) -eq 0 ] && [ -z "${FIRED[commit-$ELAPSED]:-}" ]; then
     FIRED[commit-$ELAPSED]=1
-    AUTHORS=$(git log --since="1 hour ago" --format='%an' 2>/dev/null | sort -u | tr '\n' ' ')
+    AUTHORS=$(git log --all --since="1 hour ago" --format='%an' 2>/dev/null | sort -u | tr '\n' ' ')
     say "📝 Час прошёл — каждый коммитит! За последний час: ${AUTHORS:-никого — СТОП, все коммитим}. Должно быть 3 имени."
   fi
 
