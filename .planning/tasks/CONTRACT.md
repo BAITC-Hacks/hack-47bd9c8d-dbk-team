@@ -25,14 +25,15 @@ UI (Руслан)  ──Kafka events──►  ingest-service (Антон)  ─
 | `main` | лид | `docker-compose.yml`, деплой, мерджи, README |
 
 ## Эндпоинты и ключи (в .env, в git НЕ едут)
-Речевые службы — наши, лежат в `speech_stack/`, поднимаются одной командой.
-**Нужен NVIDIA GPU**, на docker-server его нет: стек живёт на GPU-машине,
-остальное на docker-server и ходит к нему по сети.
+Речевые службы — наши, исходники в `speech_stack/`, **уже развёрнуты на GPU-машине
+и доступны по `https://stt.aibots.kz`**. Проверено 23.09: `/health` и `/health/diar`
+отдают 200, `/v1/models` без токена отдаёт 401, с docker-server достаются.
 
 | Что | Адрес | Переменная |
 |---|---|---|
-| ASR | `<gpu-host>:8080/v1/audio/transcriptions` | `STT_TOKEN` |
-| Диаризация | `<gpu-host>:8080/v1/audio/diarize` | `STT_TOKEN` |
+| ASR | `https://stt.aibots.kz/v1/audio/transcriptions` | `STT_TOKEN` |
+| Диаризация | `https://stt.aibots.kz/v1/audio/diarize` | `STT_TOKEN` |
+| Проба живости | `https://stt.aibots.kz/health` | без токена |
 | LLM | `https://llm.aibots.kz/v1` модель `qwen3-8-27b-fp8` | `LLM_API_KEY` |
 | MinIO | `minio:9000` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
 | Kafka | `redpanda:9092` | — |

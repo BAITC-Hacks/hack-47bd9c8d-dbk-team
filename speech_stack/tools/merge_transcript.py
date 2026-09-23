@@ -48,7 +48,16 @@ def main(asr_p, diar_p, title, src, out_p):
     L = []
     L.append(f"# {title}\n")
     L.append(f"**Источник:** `{src}`  ")
-    L.append(f"**Длительность:** {mmss(asr.get('duration', 0))}  ")
+    # Поле duration в ответе ASR врёт: на записи 274 с оно вернуло 16.6.
+    # Берём фактический конец по данным — последнее слово и последний сегмент
+    # диаризации, — а само поле оставляем как нижнюю границу.
+    real_end = max(
+        [asr.get("duration") or 0.0]
+        + [w.get("end", 0.0) for w in (asr.get("words") or [])]
+        + [sg.get("end", 0.0) for sg in (diar.get("segments") or [])]
+        + [t["end"] for t in turns]
+    )
+    L.append(f"**Длительность:** {mmss(real_end)}  ")
     L.append(f"**Язык:** {asr.get('language')} (определён автоматически, уверенность {asr.get('language_probability')})  ")
     L.append(f"**Распознавание:** `{asr.get('route')}`  ")
     L.append("**Диаризация:** `nvidia/diar_streaming_sortformer_4spk-v2`\n")
