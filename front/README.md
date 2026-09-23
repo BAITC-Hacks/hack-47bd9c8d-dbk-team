@@ -1,0 +1,67 @@
+# front — веб-интерфейс AI Meeting Copilot
+
+Next.js (App Router) + Tailwind v4 + shadcn-паттерн компонентов. Работает с
+конвейером meeting-copilot через Kafka и MinIO по контракту
+`.planning/tasks/CONTRACT.md`.
+
+## Что умеет
+
+1. Загрузка записи (mp3/m4a/mp4/wav/ogg/flac/webm) → MinIO `recordings/<meeting_id>/`,
+   событие `meetings.uploaded` в Kafka.
+2. Опрос статуса: события `meetings.ready` / `meetings.failed` (consumer в
+   `instrumentation.ts` → in-memory стор; запасной вариант — probe
+   `results/<meeting_id>/result.json` в MinIO).
+3. Протокол: транскрипт с говорящими, таблица поручений (ответственный, срок,
+   суть, статус, уверенность), саммари. `warnings[]` и `confidence: low`
+   показываются явно — это фича, не баг.
+4. Уведомление «Ведётся запись и транскрибация с помощью ИИ» — постоянная
+   плашка (Сценарий 1 кейса).
+5. Экспорт на клиенте: DOCX (`lib/export-docx.ts`) и PDF через печать
+   (`components/printable-protocol.tsx`, кириллица безопасна — шрифты
+   системные).
+
+## Структура
+
+```
+app/                  Next.js App Router
+  api/meetings/       POST загрузка; [id]/status, [id]/result
+  api/health/         проверка конфигурации
+components/           экраны + ui/ примитивы (shadcn-паттерн)
+lib/                  config, kafka, minio, store, types (контракт), export-docx
+mock/                 sample-result.json для MOCK_MODE
+instrumentation.ts    запуск Kafka-consumer'а при старте Node runtime
+```
+
+## Запуск локально
+
+```bash
+cp .env.example .env    # заполнить MINIO_ACCESS_KEY / MINIO_SECRET_KEY
+npm install
+npm run dev             # http://localhost:3000
+```
+
+Без инфраструктуры (демо-режим на моках):
+
+```bash
+MOCK_MODE=true npm run dev
+```
+
+## Деплой в инфраструктуру
+
+```bash
+cp .env.example .env    # KAFKA_BROKERS=kafka:9092, MINIO_ENDPOINT=minio, ключи
+docker compose up -d --build
+```
+
+Compose-файл подключается к внешней сети `meeting-copilot_web` (создаётся
+`infrastructure/docker-compose.yml`) и вешает traefik-роут `app.${DOMAIN}`.
+Для локальной проверки без traefik: `docker compose up` и `docker port` /
+`ports: ["8181:3000"]` добавить при необходимости.
+
+## Ограничения
+
+- Статусы в памяти процесса (как и у reference copilot-ui): после рестарта
+  фронта незавершённые задачи видны только через probe MinIO.
+- Файл загружается через API-роут целиком в память — для записей больше
+  ~500 МБ нужен presigned upload (сознательно не делали на хакатоне).
+- Ключи — только в `.env` (gitignored). В git не коммитить.

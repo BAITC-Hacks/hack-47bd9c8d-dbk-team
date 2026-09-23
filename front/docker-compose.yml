@@ -1,0 +1,20 @@
+# Fragment for deploying the front into the meeting-copilot infrastructure.
+# The stack's shared network is created by infrastructure/docker-compose.yml
+# (compose project "meeting-copilot" -> network "meeting-copilot_web").
+services:
+  front:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    networks: [web]
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.copilot-front.rule: Host(`app.${DOMAIN}`)
+      traefik.http.routers.copilot-front.entrypoints: websecure
+      traefik.http.routers.copilot-front.tls.certresolver: le
+      traefik.http.services.copilot-front.loadbalancer.server.port: "3000"
+
+networks:
+  web:
+    external: true
+    name: ${WEB_NETWORK:-meeting-copilot_web}
