@@ -6,28 +6,28 @@ function renderMarkdown(md: string) {
     const trimmed = line.trim();
     if (trimmed.startsWith("## ")) {
       return (
-        <h3 key={i} className="mt-3 text-base font-semibold text-zinc-100">
+        <h3 key={i} className="mt-3 text-base font-semibold text-navy-800">
           {trimmed.slice(3)}
         </h3>
       );
     }
     if (trimmed.startsWith("# ")) {
       return (
-        <h3 key={i} className="mt-3 text-lg font-semibold text-zinc-100">
+        <h3 key={i} className="mt-3 text-lg font-semibold text-navy-800">
           {trimmed.slice(2)}
         </h3>
       );
     }
     if (trimmed.startsWith("- ")) {
       return (
-        <li key={i} className="ml-5 list-disc text-sm text-zinc-300">
+        <li key={i} className="ml-5 list-disc text-sm text-zinc-700">
           {trimmed.slice(2)}
         </li>
       );
     }
     if (trimmed === "") return <div key={i} className="h-2" />;
     return (
-      <p key={i} className="text-sm leading-relaxed text-zinc-300">
+      <p key={i} className="text-sm leading-relaxed text-zinc-700">
         {trimmed}
       </p>
     );

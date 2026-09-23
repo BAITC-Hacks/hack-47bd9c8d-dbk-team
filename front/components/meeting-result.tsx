@@ -10,7 +10,7 @@ export function MeetingResultView({ result }: { result: MeetingResult }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 print:hidden">
-        <h2 className="text-lg font-semibold text-zinc-100">
+        <h2 className="text-lg font-semibold text-navy-800">
           Протокол встречи{" "}
           <span className="font-mono text-zinc-400">{result.meeting_id}</span>
         </h2>

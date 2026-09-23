@@ -13,12 +13,12 @@ export function formatTime(seconds: number): string {
 }
 
 const SPEAKER_PALETTE = [
-  "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  "bg-violet-500/15 text-violet-300 border-violet-500/30",
-  "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  "bg-rose-500/15 text-rose-300 border-rose-500/30",
-  "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+  "bg-sky-50 text-sky-800 border-sky-300",
+  "bg-emerald-50 text-emerald-800 border-emerald-300",
+  "bg-violet-50 text-violet-800 border-violet-300",
+  "bg-amber-50 text-amber-800 border-amber-300",
+  "bg-rose-50 text-rose-800 border-rose-300",
+  "bg-cyan-50 text-cyan-800 border-cyan-300",
 ];
 
 export function speakerColor(label: string): string {

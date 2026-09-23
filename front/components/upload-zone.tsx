@@ -41,15 +41,15 @@ export function UploadZone({ uploading, onUpload }: UploadZoneProps) {
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors",
           dragOver
-            ? "border-sky-500 bg-sky-500/10"
-            : "border-zinc-700 bg-zinc-900/40 hover:border-zinc-500",
+            ? "border-navy-600 bg-navy-600/5"
+            : "border-line bg-paper hover:border-bronze-400",
         )}
       >
-        <UploadCloud className="h-10 w-10 text-zinc-500" aria-hidden />
-        <div className="text-sm text-zinc-300">
+        <UploadCloud className="h-10 w-10 text-bronze-500" aria-hidden />
+        <div className="text-sm text-zinc-700">
           Перетащите запись встречи сюда или нажмите, чтобы выбрать
         </div>
-        <div className="text-xs text-zinc-500">
+        <div className="text-xs text-zinc-400">
           mp3, m4a, mp4, wav, ogg, flac, webm
         </div>
         <input
@@ -62,12 +62,12 @@ export function UploadZone({ uploading, onUpload }: UploadZoneProps) {
       </div>
 
       {file && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-line bg-white px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <FileAudio className="h-5 w-5 shrink-0 text-sky-400" aria-hidden />
+            <FileAudio className="h-5 w-5 shrink-0 text-navy-700" aria-hidden />
             <div className="min-w-0">
-              <div className="truncate text-sm text-zinc-200">{file.name}</div>
-              <div className="text-xs text-zinc-500">
+              <div className="truncate text-sm text-zinc-800">{file.name}</div>
+              <div className="text-xs text-zinc-400">
                 {(file.size / 1024 / 1024).toFixed(1)} МБ
               </div>
             </div>

@@ -2,10 +2,52 @@
 
 @theme inline {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "PT Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* sk.kz institutional palette */
+  --color-navy-950: #10233c;
+  --color-navy-900: #17335d;
+  --color-navy-800: #1b3351;
+  --color-navy-700: #283652;
+  --color-navy-600: #00305d;
+  --color-bronze-300: #d4bd9c;
+  --color-bronze-400: #b29d8a;
+  --color-bronze-500: #ab9c8a;
+  --color-bronze-600: #9d7f65;
+  --color-paper: #faf9f7;
+  --color-line: #e8e6e3;
+}
+
+body {
+  caret-color: var(--color-navy-800);
+}
+
+::selection {
+  background: var(--color-bronze-300);
+  color: var(--color-navy-950);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-navy-800);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-bronze-400) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-bronze-400);
+  border-radius: 4px;
 }
 
 @media print {
