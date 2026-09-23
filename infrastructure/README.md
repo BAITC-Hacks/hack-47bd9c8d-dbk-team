@@ -126,7 +126,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 | Сервис | URL |
 |---|---|
 | Фронт (Next.js) | `http://localhost:3000` |
-| Kafbat UI | `http://localhost:8181` (admin / `KAFKA_UI_PASSWORD`) |
+| Kafbat UI | `http://localhost:8080` (admin / `KAFKA_UI_PASSWORD`) |
 | MinIO console | `http://localhost:9001` (root-креды из `.env`) |
 | MinIO S3 API | `http://localhost:9000` |
 | Kafka с хоста | `localhost:9094` (PLAINTEXT) |

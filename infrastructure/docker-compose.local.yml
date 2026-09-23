@@ -23,22 +23,19 @@ services:
   traefik:
     profiles: [tls]
 
-  # Kafka: INTERNAL-листенер kafka:9092 для контейнеров, HOST-листенер
-  # localhost:9094 для клиентов с хоста.
-  kafka:
-    ports:
-      - "127.0.0.1:9094:9094"
+  # Kafka: HOST-листенер localhost:9094 для клиентов с хоста уже проброшен
+  # в базовом файле — здесь ничего переопределять не нужно.
 
   # Kafbat UI — веб-интерфейс Kafka
   kafka-ui:
     ports:
       - "127.0.0.1:8181:8080"
 
+  # MinIO: S3 API на 9000, веб-консоль на 9001.
+  # Запиненный hotfix-образ minio — только amd64; на Apple Silicon запускаем
+  # через эмуляцию (OrbStack/Rosetta). На x86-машине строку platform можно убрать.
   minio:
-    # запиненный hotfix-образ minio — только amd64; на Apple Silicon
-    # запускаем через эмуляцию (OrbStack/Rosetta). На x86-машине строку
-    # platform можно убрать.
     platform: linux/amd64
     ports:
-      - "127.0.0.1:9000:9000"   # S3 API
-      - "127.0.0.1:9001:9001"   # console
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"

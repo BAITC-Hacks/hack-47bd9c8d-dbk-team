@@ -125,6 +125,11 @@ class Poller:
                         filename=audio_name or "audio.m4a",
                         lang_hint=self._config.lang_hint,
                     )
+                if audio_key is None:
+                    # аудио не скачано (Zoom ещё обрабатывает запись?) —
+                    # не помечаем processed, повторим на следующем проходе
+                    log.warning("ingest %s: аудио не скачано, повтор позже", uuid)
+                    continue
                 processed.add(uuid)
                 ingested += 1
 
