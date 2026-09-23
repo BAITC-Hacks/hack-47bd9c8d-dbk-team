@@ -1,0 +1,16 @@
+.env
+.git
+.idea
+.claude
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.vtt
+*.zip
+tests
+

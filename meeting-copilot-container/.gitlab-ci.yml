@@ -1,0 +1,60 @@
+# CI/CD для ai-meeting-copilot
+#
+# Runner: project-runner "ai-meeting-copilot" на 192.168.202.61, docker executor,
+# /var/run/docker.sock примонтирован (volumes задаётся при регистрации:
+# --docker-volumes /var/run/docker.sock). Джобы идут с тегом раннера:
+# ai-meeting-copilot (run_untagged: false у раннера).
+#
+# ВАЖНО: на хосте включён userns-remap, поэтому из job-контейнера доступ к
+# docker.sock только с 0666 (root в userns ns != root хоста, сокет 0660
+# root:docker не подходит). Persistently: /etc/systemd/system/docker.socket.d/
+# override.conf -> SocketMode=0666 (применяется ролью baseline, см. ниже).
+#
+# ВАЖНО 2: registry.kdb.kz хранит блобы на filesystem (/var/opt/gitlab/registry
+# в контейнере gitlab), НЕ в MinIO. Почему: distribution v4 (registry 4.41)
+# шлёт multipart-Init с CRC64NVME, UploadPartCopy без него — MinIO 400 →
+# registry 500 на push слоёв; MinIO CE архивирован, фикс конфигом невозможен
+# (env-обход AWS_REQUEST_CHECKSUM_CALCULATION не срабатывает — драйвер ставит
+# опции явно в драйвере). Подробности: runbooks/gitlab.md в rdyussenov/ansible.
+#
+# build  — собирает Dockerfile.service, пушит :sha и :main в registry.kdb.kz
+# deploy – manual, тянет свежий :main на хост и пересоздаёт контейнер
+#          (systemctl start meeting-copilot-deploy от юзера deploy).
+#
+# Переменные CI/CD (Settings > CI/CD > Variables):
+#   DEPLOY_SSH_KEY (Variable, protected) — base64 -w0 приватного ключа
+#     юзера deploy@192.168.202.61 (генерация: base64 -w0 ~/.ssh/deploy_ci)
+
+stages:
+  - build
+  - deploy
+
+variables:
+  IMAGE: registry.kdb.kz/kdb-ai/ai-meeting-copilot
+
+build:
+  stage: build
+  tags: [ai-meeting-copilot]
+  image: docker:cli
+  script:
+    - docker build -f Dockerfile.service -t "$IMAGE:$CI_COMMIT_SHORT_SHA" -t "$IMAGE:main" .
+    - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin registry.kdb.kz
+    - docker push "$IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$IMAGE:main"
+
+deploy:
+  stage: deploy
+  tags: [ai-meeting-copilot]
+  image: alpine:3.20
+  when: manual
+  only:
+    - main
+  script:
+    - apk add --no-cache openssh-client
+    - echo "$DEPLOY_SSH_KEY" | base64 -d > /tmp/deploy_key
+    - chmod 600 /tmp/deploy_key
+    # sshd на таргете слушает 51522 (как у всех хостов baseline, см. ansible.cfg).
+    # ВТОРОЙ ssh с systemctl status НЕ добавлять: authorized_keys у deploy —
+    # forced command /usr/local/sbin/deploy-run, он берёт ПЕРВОЕ слово как app
+    # и отклоняет всё остальное ("unknown app").
+    - ssh -p 51522 -o StrictHostKeyChecking=accept-new -i /tmp/deploy_key deploy@192.168.202.61 meeting-copilot
