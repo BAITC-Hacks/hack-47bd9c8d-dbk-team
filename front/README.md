@@ -7,8 +7,8 @@ Next.js (App Router) + Tailwind v4 + shadcn-паттерн компоненто�
 ## Что умеет
 
 1. Живая запись (Сценарий 1): кнопка «Начать запись» → предупреждение
-   участникам на двух языках (`public/audio-warnings/rus.mp3`, затем
-   `kaz.mp3`) → поток с микрофона чанками по 5 с (`MediaRecorder`, webm/opus) через
+   участникам на двух языках (`public/audio-warnings/kaz.mp3`, затем
+   `rus.mp3`) → поток с микрофона чанками по 5 с (`MediaRecorder`, webm/opus) через
    `/api/meetings/start|chunk|finish` → сборка в MinIO
    `recordings/<meeting_id>/live.webm` → событие `meetings.uploaded` в Kafka.
 2. Загрузка записи (mp3/m4a/mp4/wav/ogg/flac/webm) → MinIO `recordings/<meeting_id>/`,

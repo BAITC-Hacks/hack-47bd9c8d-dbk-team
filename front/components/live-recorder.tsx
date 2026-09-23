@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const CHUNK_MS = 5000;
-const NOTICE_URLS = ["/audio-warnings/rus.mp3", "/audio-warnings/kaz.mp3"];
+const NOTICE_URLS = ["/audio-warnings/kaz.mp3", "/audio-warnings/rus.mp3"];
 const NOTICE_TIMEOUT_MS = 20000;
 const RETRY_DELAY_MS = 1000;
 
@@ -24,7 +24,7 @@ function pickMime(): string {
   return MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
 }
 
-// Plays the AI-recording notice for participants in Russian, then Kazakh.
+// Plays the AI-recording notice for participants in Kazakh, then Russian.
 // Resolves anyway if a file is missing or takes too long — the demo flow
 // must never stall on a missing asset.
 function playNotice(): Promise<void> {
