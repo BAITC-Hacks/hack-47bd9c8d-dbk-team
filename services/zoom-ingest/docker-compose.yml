@@ -1,0 +1,28 @@
+# zoom-ingest: записи Zoom -> конвейер meeting-copilot (MinIO + Kafka).
+# Подключается к общей сети стека infrastructure/ (meeting-copilot_web).
+#
+#   docker compose up -d --build          # поллер облачных записей (фон)
+#   docker compose run --rm zoom-bot \
+#     "https://zoom.us/j/<id>?pwd=<pwd>" --name "ИИ-секретарь (запись)"
+services:
+  zoom-ingest:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    networks: [web]
+
+  zoom-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    # on-demand: поднимается только через `docker compose run`
+    profiles: [bot]
+    env_file: .env
+    # chromium без --disable-dev-shm-usage — даём нормальный /dev/shm
+    shm_size: 1gb
+    networks: [web]
+
+networks:
+  web:
+    external: true
+    name: ${WEB_NETWORK:-meeting-copilot_web}
