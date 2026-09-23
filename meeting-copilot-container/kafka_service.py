@@ -172,7 +172,7 @@ def run_pipeline(audio_file: Path, vtt_file: Optional[Path], output_dir: Path) -
     if process.returncode != 0:
         stderr_tail = stderr.strip()[-500:]
         # entrypoint.sh падает с ненулевым кодом в первую очередь на ошибках
-        # запросов к ai.kdb.kz / OpenRouter (сеть, HTTP-код, таймаут curl) —
+        # запросов к речевым службам и языковой модели (сеть, HTTP-код, таймаут curl) —
         # других причин у него практически нет, поэтому весь этот класс
         # ошибок помечается как недоступность внешнего сервиса.
         raise ProcessingError(
