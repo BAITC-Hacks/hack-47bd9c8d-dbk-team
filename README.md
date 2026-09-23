@@ -209,7 +209,21 @@ cd speech_stack
 [`docs/TASK/records/artifacts/protocol.md`](docs/TASK/records/artifacts/protocol.md),
 рядом — сырые ответы распознавания и диаризации.
 
-Замер распознавания на шала-казахском, на публичных данных:
+### Распознавание смешанной речи: ничего не настраивать
+
+```bash
+curl -H "Authorization: Bearer $STT_TOKEN" \
+     -F file=@запись.mp3 -F language=auto -F response_format=verbose_json \
+     https://stt.aibots.kz/v1/audio/transcriptions
+```
+
+`language=auto` — и всё. Детектор сам уводит смешанную речь на казахский маршрут: на
+31 записи из 31, без единого промаха. Указывать `kk` вручную не нужно, результат тот же.
+
+**Чего делать нельзя:** ставить `language=ru` на том основании, что половина слов русские.
+Это ровно вдвое хуже — 0.1147 против 0.0511.
+
+Проверить это утверждение на публичных данных:
 
 ```bash
 huggingface-cli download Tim2190/kazakh-codeswitch-asr \
