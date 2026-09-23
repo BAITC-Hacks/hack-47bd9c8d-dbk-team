@@ -60,7 +60,7 @@ export function MarkdownBlocks({
           }
           case "bullet":
             return (
-              <div key={i} className={cn("flex gap-2 pl-1", body)}>
+              <div key={i} className={cn("flex gap-2 pl-1", print && "print-line", body)}>
                 <span
                   aria-hidden
                   className={print ? "text-black" : "text-bronze-500"}
@@ -74,7 +74,7 @@ export function MarkdownBlocks({
             );
           case "numbered":
             return (
-              <div key={i} className={cn("flex gap-2 pl-1", body)}>
+              <div key={i} className={cn("flex gap-2 pl-1", print && "print-line", body)}>
                 <span className="tabular-nums text-zinc-500">
                   {block.marker}
                 </span>

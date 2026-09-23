@@ -50,9 +50,62 @@ body {
   border-radius: 4px;
 }
 
+/* Протокол на бумаге. PDF получается печатью из браузера — так кириллица
+   остаётся кириллицей и не нужно тащить шрифты в сборку. Всё, что относится
+   к странице, собрано здесь: в разметке остаётся содержание, не вёрстка. */
+@page {
+  size: A4;
+  margin: 18mm 16mm 16mm;
+}
+
 @media print {
   body {
     background: white !important;
     color: black !important;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+
+  /* Документ читают как документ: ровный правый край, переносы по слогам,
+     иначе выключка рвёт строки дырами. Одиночные строки в начале и конце
+     страницы запрещены — абзац не должен разваливаться через разрыв. */
+  .print-doc p,
+  .print-doc li,
+  .print-doc .print-para {
+    text-align: justify;
+    hyphens: auto;
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Заголовок без своего текста на странице — висячая строка. */
+  .print-doc h1,
+  .print-doc h2,
+  .print-doc h3,
+  .print-doc h4,
+  .print-doc h5 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-doc section {
+    break-inside: auto;
+  }
+
+  /* Строку таблицы и реплику транскрипта разрывать нельзя: половина
+     поручения на одной странице, половина на другой — не протокол. */
+  .print-doc tr,
+  .print-doc .print-line {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Таблица поручений переносится на вторую страницу вместе с шапкой. */
+  .print-doc thead {
+    display: table-header-group;
+  }
+
+  .print-doc table {
+    break-before: auto;
   }
 }
