@@ -51,7 +51,9 @@ export function LanguageSwitcher({
       {busy && (
         <span className="flex items-center gap-1 text-xs text-zinc-500">
           <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-          переводим
+          {/* Перевод идёт до двух минут: человек должен видеть, что именно
+              переводится и почему транскрипт остался на языке записи. */}
+          переводим саммари и поручения
         </span>
       )}
     </div>
