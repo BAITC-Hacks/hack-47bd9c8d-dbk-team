@@ -42,7 +42,59 @@ mc = Minio(
     secure=_ep.startswith("https"),
 )
 
-DUE = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+MONTHS = {"янв": 1, "фев": 2, "мар": 3, "апр": 4, "мая": 5, "май": 5, "июн": 6,
+          "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12}
+ISO = re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+RU_DATE = re.compile(r"(\d{1,2})\s+([а-яё]{3})[а-яё]*", re.I)
+YEAR = int(os.environ.get("MEETING_YEAR", "2026"))
+
+
+def to_iso(raw: str) -> str | None:
+    """«до 15 октября» → 2026-10-15. Год берём из окружения: в записи он
+    обычно не звучит, а протоколу нужна дата, а не словесный срок."""
+    m = ISO.search(raw or "")
+    if m:
+        return m.group(1)
+    m = RU_DATE.search(raw or "")
+    if m:
+        mon = MONTHS.get(m.group(2).lower()[:3])
+        if mon:
+            return f"{YEAR}-{mon:02d}-{int(m.group(1)):02d}"
+    return None
+
+
+def parse_commitments(summary: str) -> list[dict]:
+    """Разбирает таблицу поручений из summary.md.
+
+    Обработчик отдаёт раздел «Поручения» markdown-таблицей
+    «Поручение | Ответственный | Срок». Разбор таблицы детерминирован и не
+    требует ещё одного вызова модели — на демо это лишняя минута ожидания.
+    """
+    out, in_table = [], False
+    for line in summary.splitlines():
+        low = line.lower()
+        if "поручени" in low and line.lstrip().startswith("#") or low.strip().startswith("6."):
+            in_table = True
+            continue
+        if not in_table:
+            continue
+        if not line.strip().startswith("|"):
+            if out and line.strip() and not line.strip().startswith("|"):
+                break
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3 or set(cells[0]) <= set("-: ") or "поручение" in cells[0].lower():
+            continue
+        text, who, due_raw = cells[0], cells[1], cells[2]
+        out.append({"id": f"c{len(out)+1}", "assignee": who or None,
+                    "assignee_speaker": who if who.lower().startswith("speaker") else None,
+                    "due_date": to_iso(due_raw), "due_raw": due_raw,
+                    "text": text, "quote": text, "t_start": None,
+                    # Ответственный пришёл ярлыком, а не именем — привязка
+                    # к человеку не подтверждена, помечаем честно.
+                    "confidence": "low" if who.lower().startswith("speaker") else "high",
+                    "status": "in_progress"})
+    return out
 
 
 def _prefix_of(object_key: str) -> str:
@@ -83,18 +135,7 @@ def build_result(meeting_id: str, prefix: str) -> dict:
         except Exception as e:
             log.warning("transcript.json не разобран: %s", e)
 
-    # Поручения в summary.md идут списком; вытаскиваем строки со сроком.
-    commitments = []
-    for i, line in enumerate(l.strip(" -*\t") for l in summary.splitlines()):
-        if not line or len(line) < 15:
-            continue
-        m = DUE.search(line)
-        if m:
-            commitments.append({"id": f"c{len(commitments)+1}", "assignee": None,
-                                "assignee_speaker": None, "due_date": m.group(1),
-                                "due_raw": m.group(1), "text": line, "quote": line,
-                                "t_start": None, "confidence": "low",
-                                "status": "in_progress"})
+    commitments = parse_commitments(summary)
 
     return {"meeting_id": meeting_id, "transcript": transcript,
             "speakers": list(speakers.values()), "commitments": commitments,
