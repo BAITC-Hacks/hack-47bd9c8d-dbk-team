@@ -59,9 +59,24 @@
     }
   ],
   "speakers": [
-    { "label": "SPK_1", "name": "Нурлан Сагатович", "resolved_by": "text", "merged": false },
-    { "label": "SPK_2", "name": "Гульмира Сериковна", "resolved_by": "text", "merged": false },
-    { "label": "SPK_3", "name": "SPK_3", "resolved_by": "diar", "merged": true }
+    {
+      "label": "SPK_1",
+      "name": "Нурлан Сагатович",
+      "resolved_by": "text",
+      "merged": false
+    },
+    {
+      "label": "SPK_2",
+      "name": "Гульмира Сериковна",
+      "resolved_by": "text",
+      "merged": false
+    },
+    {
+      "label": "SPK_3",
+      "name": "SPK_3",
+      "resolved_by": "diar",
+      "merged": true
+    }
   ],
   "commitments": [
     {
@@ -92,8 +107,8 @@
       "id": "c3",
       "assignee": "Ержан",
       "assignee_speaker": "SPK_3",
-      "due_date": "2026-09-26",
-      "due_raw": "в пятницу",
+      "due_date": "2026-09-20",
+      "due_raw": "к двадцатому сентября",
       "text": "согласовать новый график приёмки с прорабом",
       "quote": "график — в пятницу после согласования с прорабом.",
       "t_start": 68.4,

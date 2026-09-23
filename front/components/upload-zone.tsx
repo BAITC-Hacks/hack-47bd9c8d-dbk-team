@@ -31,7 +31,12 @@ export function UploadZone({ uploading, onUpload }: UploadZoneProps) {
         tabIndex={0}
         aria-label="Выбрать файл записи"
         onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -49,7 +54,7 @@ export function UploadZone({ uploading, onUpload }: UploadZoneProps) {
         <div className="text-sm text-zinc-700">
           Перетащите запись встречи сюда или нажмите, чтобы выбрать
         </div>
-        <div className="text-xs text-zinc-400">
+        <div className="text-xs text-zinc-500">
           mp3, m4a, mp4, wav, ogg, flac, webm
         </div>
         <input
@@ -67,7 +72,7 @@ export function UploadZone({ uploading, onUpload }: UploadZoneProps) {
             <FileAudio className="h-5 w-5 shrink-0 text-navy-700" aria-hidden />
             <div className="min-w-0">
               <div className="truncate text-sm text-zinc-800">{file.name}</div>
-              <div className="text-xs text-zinc-400">
+              <div className="text-xs text-zinc-500">
                 {(file.size / 1024 / 1024).toFixed(1)} МБ
               </div>
             </div>
