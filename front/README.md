@@ -6,17 +6,22 @@ Next.js (App Router) + Tailwind v4 + shadcn-паттерн компоненто�
 
 ## Что умеет
 
-1. Загрузка записи (mp3/m4a/mp4/wav/ogg/flac/webm) → MinIO `recordings/<meeting_id>/`,
+1. Живая запись (Сценарий 1): кнопка «Начать запись» → предупреждение
+   участникам (`public/recording-notice.mp3`, MP3 44.1 кГц моно) → поток с
+   микрофона чанками по 5 с (`MediaRecorder`, webm/opus) через
+   `/api/meetings/start|chunk|finish` → сборка в MinIO
+   `recordings/<meeting_id>/live.webm` → событие `meetings.uploaded` в Kafka.
+2. Загрузка записи (mp3/m4a/mp4/wav/ogg/flac/webm) → MinIO `recordings/<meeting_id>/`,
    событие `meetings.uploaded` в Kafka.
-2. Опрос статуса: события `meetings.ready` / `meetings.failed` (consumer в
+3. Опрос статуса: события `meetings.ready` / `meetings.failed` (consumer в
    `instrumentation.ts` → in-memory стор; запасной вариант — probe
    `results/<meeting_id>/result.json` в MinIO).
-3. Протокол: транскрипт с говорящими, таблица поручений (ответственный, срок,
+4. Протокол: транскрипт с говорящими, таблица поручений (ответственный, срок,
    суть, статус, уверенность), саммари. `warnings[]` и `confidence: low`
    показываются явно — это фича, не баг.
-4. Уведомление «Ведётся запись и транскрибация с помощью ИИ» — постоянная
+5. Уведомление «Ведётся запись и транскрибация с помощью ИИ» — постоянная
    плашка (Сценарий 1 кейса).
-5. Экспорт на клиенте: DOCX (`lib/export-docx.ts`) и PDF через печать
+6. Экспорт на клиенте: DOCX (`lib/export-docx.ts`) и PDF через печать
    (`components/printable-protocol.tsx`, кириллица безопасна — шрифты
    системные).
 
@@ -62,6 +67,8 @@ Compose-файл подключается к внешней сети `meeting-co
 
 - Статусы в памяти процесса (как и у reference copilot-ui): после рестарта
   фронта незавершённые задачи видны только через probe MinIO.
+- Чанки живой записи буферизуются в памяти процесса до «Завершить запись» —
+  один инстанс фронта на запись; при рестарте процесса недошедшие чанки теряются.
 - Файл загружается через API-роут целиком в память — для записей больше
   ~500 МБ нужен presigned upload (сознательно не делали на хакатоне).
 - Ключи — только в `.env` (gitignored). В git не коммитить.
