@@ -1,53 +1,78 @@
-# --- secrets (never in GitHub — organizers' rule) ---
+# --- секреты: в репозиторий не едут никогда (правило организаторов) ---
 .env
 .env.*
 !.env.example
 *.pem
 *.key
+*.p12
+*credentials*.json
 
-# --- machine-local agent state ---
-.gbrain-owner.json
-.claude
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.eslintcache
+
+# --- Docker / инфраструктура ---
+docker-compose.override.yml
+infrastructure/.env
+infrastructure/letsencrypt/
+infrastructure/data/
+
+# --- данные и артефакты выполнения ---
+data/
+uploads/
+artifacts/
+*.log
+tmp/
+.cache/
+
+# --- скриншоты и черновики для обсуждения, не часть решения ---
+docs/screenshots/
+docs/image.png
+
+# --- локальное состояние агентов и инструментов ---
+.claude/
 .codex/*
 !.codex/hooks.json
-.agents
+.agents/
+.gbrain
+.gbrain-owner.json
 skills-lock.json
+.kiro/
 
-# --- tool clones (install via tools/dev-workflow-setup.sh) ---
+# --- материализация страниц gbrain (живут в мозге, не в git) ---
+decisions/
+
+# --- клоны инструментов (ставятся через tools/dev-workflow-setup.sh) ---
+# Всё в tools/ — внешнее, кроме наших собственных скриптов и playbook'ов.
 tools/*
 !tools/*.sh
 !tools/*.py
 !tools/*.yaml
 !tools/dev-workflow/
 
-# --- python ---
-venv
-.venv
-__pycache__/
-*.pyc
-.pytest_cache/
-
-# --- node / frontend (hackathon app) ---
-node_modules/
-.next/
-dist/
-build/
-
-# --- misc ---
-*.log
-data/
-.DS_Store
-.idea/
-.vscode/
-docker-compose.override.yml
-
-# --- internal playbooks (distributed via tools/dev-workflow/, not for judges) ---
+# --- внутренние playbook'и команды (раздаются через tools/dev-workflow/) ---
 /AGENTS.md
 /HACKATHON.md
 
-# gbrain page materialization (lives in the brain, not in git)
-decisions/
-
-
-# gbrain opt-in marker: machine-local, must not reach worktrees via checkout
-.gbrain
+# --- ОС и редакторы ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

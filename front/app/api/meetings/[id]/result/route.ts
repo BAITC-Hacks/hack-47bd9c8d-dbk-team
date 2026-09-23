@@ -20,7 +20,7 @@ export async function GET(
 
   try {
     const result = await getResultJson<MeetingResult>(`${id}/result.json`);
-    cacheResult(result);
+    await cacheResult(result);
     return NextResponse.json(result);
   } catch (err) {
     console.error("[result] failed to load", id, err);

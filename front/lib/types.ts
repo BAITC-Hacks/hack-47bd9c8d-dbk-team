@@ -29,6 +29,10 @@ export interface Commitment {
   t_start: number;
   confidence: Confidence;
   status: CommitmentStatus;
+  /** «Срочно · Договорная работа» — классификация из раздела «Дополнительно». */
+  classification?: string | null;
+  urgency?: string | null;
+  area?: string | null;
 }
 
 export interface MeetingResult {

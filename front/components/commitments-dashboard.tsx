@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, BellRing, Check, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { CommitmentEntry } from "@/lib/commitments-store";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +60,8 @@ export function CommitmentsDashboard() {
   const [items, setItems] = useState<CommitmentEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [notifying, setNotifying] = useState(false);
+  const [mailNote, setMailNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,6 +80,48 @@ export function CommitmentsDashboard() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Сохраняем правку сразу: адрес и отметка «выполнено» задаются руками,
+  // и терять их при обновлении страницы нельзя.
+  const patch = useCallback(
+    async (entry: CommitmentEntry, body: Record<string, unknown>) => {
+      const res = await fetch("/api/commitments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meeting_id: entry.meeting_id,
+          commitment_id: entry.id,
+          ...body,
+        }),
+      });
+      if (res.ok) load();
+    },
+    [load],
+  );
+
+  const notify = useCallback(async () => {
+    setNotifying(true);
+    setMailNote(null);
+    try {
+      const res = await fetch("/api/commitments/notify", { method: "POST" });
+      const body = await res.json();
+      const parts: string[] = [];
+      if (body.sent) parts.push(`отправлено: ${body.sent}`);
+      if (body.failed) parts.push(`не доставлено: ${body.failed}`);
+      if (body.pending) parts.push(`в журнале: ${body.pending}`);
+      if (!body.mail_configured) {
+        parts.push("почта не настроена — письма записаны, но не отправлены");
+      }
+      setMailNote(
+        parts.length ? parts.join(" · ") : "Напоминать пока не о чем.",
+      );
+      load();
+    } catch {
+      setMailNote("Не удалось проверить сроки. Повторите.");
+    } finally {
+      setNotifying(false);
+    }
   }, [load]);
 
   const sorted = [...(items ?? [])].sort((a, b) => {
@@ -107,6 +151,18 @@ export function CommitmentsDashboard() {
               )}
             </span>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={notify}
+            disabled={notifying}
+          >
+            <BellRing
+              className={notifying ? "h-3.5 w-3.5 animate-pulse" : "h-3.5 w-3.5"}
+              aria-hidden
+            />
+            Проверить сроки
+          </Button>
           <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
             <RefreshCw
               className={loading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
@@ -117,6 +173,11 @@ export function CommitmentsDashboard() {
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
+        {mailNote && (
+          <p className="border-b border-line bg-paper px-5 py-2 text-xs text-zinc-600">
+            {mailNote}
+          </p>
+        )}
         {error && (
           <div
             role="alert"
@@ -139,6 +200,7 @@ export function CommitmentsDashboard() {
                 <th className="px-3 py-2 font-medium">Ответственный</th>
                 <th className="px-3 py-2 font-medium">Поручение</th>
                 <th className="px-3 py-2 font-medium">Совещание</th>
+                <th className="px-3 py-2 font-medium">Почта для напоминаний</th>
                 <th className="px-3 py-2 font-medium">Статус</th>
                 <th className="px-5 py-2 font-medium">Контроль срока</th>
               </tr>
@@ -165,6 +227,21 @@ export function CommitmentsDashboard() {
                     <td className="whitespace-nowrap px-3 py-3 font-mono text-xs text-zinc-500">
                       {c.meeting_id}
                     </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="email"
+                        defaultValue={c.assignee_email ?? ""}
+                        placeholder="адрес не задан"
+                        aria-label={`Почта для напоминаний по поручению ${c.id}`}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim();
+                          if (next !== (c.assignee_email ?? "")) {
+                            patch(c, { assignee_email: next });
+                          }
+                        }}
+                        className="w-48 rounded border border-line bg-white px-2 py-1 text-xs text-zinc-700 placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy-600"
+                      />
+                    </td>
                     <td className="whitespace-nowrap px-3 py-3">
                       <Badge
                         variant={
@@ -179,7 +256,19 @@ export function CommitmentsDashboard() {
                       </Badge>
                     </td>
                     <td className="whitespace-nowrap px-5 py-3">
-                      <DeadlineBadge entry={c} />
+                      <div className="flex items-center gap-3">
+                        <DeadlineBadge entry={c} />
+                        {c.status !== "done" && (
+                          <button
+                            type="button"
+                            onClick={() => patch(c, { status: "done" })}
+                            className="inline-flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-600"
+                          >
+                            <Check className="h-3.5 w-3.5" aria-hidden />
+                            выполнено
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
