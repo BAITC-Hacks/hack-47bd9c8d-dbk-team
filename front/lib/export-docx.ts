@@ -48,10 +48,12 @@ function summaryBlocks(summary: string): (Paragraph | Table)[] {
       case "bullet":
         return new Paragraph({
           bullet: { level: 0 },
+          alignment: AlignmentType.JUSTIFIED,
           children: runs(block.inline),
         });
       case "numbered":
         return new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
           children: [text(`${block.marker} `), ...runs(block.inline)],
         });
       case "table":
@@ -80,8 +82,10 @@ function summaryBlocks(summary: string): (Paragraph | Table)[] {
           ],
         });
       default:
+        // Выравнивание по ширине: деловой документ, а не черновик.
         return new Paragraph({
-          spacing: { after: 80 },
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: { after: 80, line: 276 },
           children: runs(block.inline),
         });
     }

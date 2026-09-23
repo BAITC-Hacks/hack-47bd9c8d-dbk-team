@@ -7,7 +7,10 @@ export function SummaryView({ summary }: { summary: string }) {
       <CardHeader>
         <CardTitle>Саммари</CardTitle>
       </CardHeader>
-      <CardContent>
+      {/* Тот же потолок, что и у транскрипта: иначе длинное саммари растягивает
+          страницу на несколько экранов, а колонка с репликами обрывается рядом
+          коротким огрызком. */}
+      <CardContent className="max-h-[520px] overflow-y-auto">
         <MarkdownBlocks source={summary} />
       </CardContent>
     </Card>

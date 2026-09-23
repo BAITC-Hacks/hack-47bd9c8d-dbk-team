@@ -193,16 +193,18 @@ export function CommitmentsDashboard() {
           </p>
         )}
         {sorted.length > 0 && (
+          // Семь колонок в карточке max-w-6xl не влезали, и «Контроль срока»
+          // с кнопкой «выполнено» уезжал за край. Свели к пяти: id совещания
+          // ушёл подписью к тексту поручения, остаток дней — под самим сроком,
+          // а контроль срока слился со статусом — это про одно и то же.
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-zinc-500">
-                <th className="px-5 py-2 font-medium">Срок</th>
+                <th className="px-4 py-2 font-medium">Срок</th>
                 <th className="px-3 py-2 font-medium">Ответственный</th>
                 <th className="px-3 py-2 font-medium">Поручение</th>
-                <th className="px-3 py-2 font-medium">Совещание</th>
-                <th className="px-3 py-2 font-medium">Почта для напоминаний</th>
-                <th className="px-3 py-2 font-medium">Статус</th>
-                <th className="px-5 py-2 font-medium">Контроль срока</th>
+                <th className="px-3 py-2 font-medium">Почта</th>
+                <th className="px-4 py-2 font-medium">Статус</th>
               </tr>
             </thead>
             <tbody>
@@ -217,21 +219,26 @@ export function CommitmentsDashboard() {
                         : "border-b border-line/70 align-top last:border-0 hover:bg-paper"
                     }
                   >
-                    <td className="whitespace-nowrap px-5 py-3 font-medium text-navy-800">
-                      {c.due_date ?? c.due_raw}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="whitespace-nowrap font-medium text-navy-800">
+                          {c.due_date ?? c.due_raw}
+                        </span>
+                        <DeadlineBadge entry={c} />
+                      </div>
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-zinc-700">
-                      {c.assignee}
-                    </td>
-                    <td className="px-3 py-3 text-zinc-700">{c.text}</td>
-                    <td className="whitespace-nowrap px-3 py-3 font-mono text-xs text-zinc-500">
-                      {c.meeting_id}
+                    <td className="px-3 py-3 text-zinc-700">{c.assignee}</td>
+                    <td className="px-3 py-3 text-zinc-700">
+                      {c.text}
+                      <span className="mt-1 block break-all font-mono text-xs text-zinc-500">
+                        {c.meeting_id}
+                      </span>
                     </td>
                     <td className="px-3 py-3">
                       <input
                         type="email"
                         defaultValue={c.assignee_email ?? ""}
-                        placeholder="адрес не задан"
+                        placeholder="для напоминаний"
                         aria-label={`Почта для напоминаний по поручению ${c.id}`}
                         onBlur={(e) => {
                           const next = e.target.value.trim();
@@ -239,25 +246,22 @@ export function CommitmentsDashboard() {
                             patch(c, { assignee_email: next });
                           }
                         }}
-                        className="w-48 rounded border border-line bg-white px-2 py-1 text-xs text-zinc-700 placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy-600"
+                        className="w-32 rounded border border-line bg-white px-2 py-1 text-xs text-zinc-700 placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-navy-600 md:w-44"
                       />
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3">
-                      <Badge
-                        variant={
-                          (STATUS_LABEL[c.status] ?? STATUS_LABEL.in_progress)
-                            .variant
-                        }
-                      >
-                        {
-                          (STATUS_LABEL[c.status] ?? STATUS_LABEL.in_progress)
-                            .label
-                        }
-                      </Badge>
-                    </td>
-                    <td className="whitespace-nowrap px-5 py-3">
-                      <div className="flex items-center gap-3">
-                        <DeadlineBadge entry={c} />
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <Badge
+                          variant={
+                            (STATUS_LABEL[c.status] ?? STATUS_LABEL.in_progress)
+                              .variant
+                          }
+                        >
+                          {
+                            (STATUS_LABEL[c.status] ?? STATUS_LABEL.in_progress)
+                              .label
+                          }
+                        </Badge>
                         {c.status !== "done" && (
                           <button
                             type="button"
