@@ -1,8 +1,16 @@
 # front — веб-интерфейс AI Meeting Copilot
 
-Next.js (App Router) + Tailwind v4 + shadcn-паттерн компонентов. Работает с
-конвейером meeting-copilot через Kafka и MinIO по контракту
-`.planning/tasks/CONTRACT.md`.
+Развёрнут: **https://app.aibots.kz**
+
+Next.js (App Router) + Tailwind v4 + shadcn-паттерн компонентов. Работает с конвейером meeting-copilot через Kafka и MinIO.
+
+Между интерфейсом и обработчиком стоит `services/adapter` — он переводит события
+`meetings.*` в формат обработчика (`AiMeetingCopilot*`) и собирает `result.json`
+по схеме `.planning/tasks/CONTRACT.md`. Интерфейс обработчика не знает и знать
+не должен.
+
+Бакет записей на развёрнутом стенде — `uploads` (переменная `RECORDINGS_BUCKET`):
+инфраструктура выдаёт права именно на него.
 
 ## Что умеет
 

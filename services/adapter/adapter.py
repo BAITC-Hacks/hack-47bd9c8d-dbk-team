@@ -86,12 +86,16 @@ def parse_commitments(summary: str) -> list[dict]:
         if len(cells) < 3 or set(cells[0]) <= set("-: ") or "поручение" in cells[0].lower():
             continue
         text, who, due_raw = cells[0], cells[1], cells[2]
+        # Четвёртая колонка — классификация по срочности и направлению
+        # («Срочно · Договорная работа»). Пункт из раздела «Дополнительно».
+        classification = cells[3] if len(cells) > 3 else None
         out.append({"id": f"c{len(out)+1}", "assignee": who or None,
                     "assignee_speaker": who if who.lower().startswith("speaker") else None,
                     "due_date": to_iso(due_raw), "due_raw": due_raw,
                     "text": text, "quote": text, "t_start": None,
                     # Ответственный пришёл ярлыком, а не именем — привязка
                     # к человеку не подтверждена, помечаем честно.
+                    "classification": classification,
                     "confidence": "low" if who.lower().startswith("speaker") else "high",
                     "status": "in_progress"})
     return out
