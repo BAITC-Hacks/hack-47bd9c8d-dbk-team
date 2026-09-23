@@ -58,6 +58,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
@@ -78,6 +79,8 @@ services:
 
   kafka-init:
     image: apache/kafka:3.9.0
+    environment:
+      KAFKA_TOPICS: ${KAFKA_TOPICS}
     depends_on:
       kafka:
         condition: service_healthy
@@ -141,6 +144,7 @@ services:
       MINIO_APP_USER: ${MINIO_APP_USER}
       MINIO_APP_PASSWORD: ${MINIO_APP_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_BUCKETS: ${MINIO_BUCKETS}
     volumes:
       - ./minio/mc-init.sh:/mc-init.sh:ro
       - ./minio/copilot-uploads-rw.json:/policy/copilot-uploads-rw.json:ro
