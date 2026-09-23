@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CommitmentsDashboard } from "@/components/commitments-dashboard";
 import { LiveRecorder } from "@/components/live-recorder";
 import { MeetingProgress } from "@/components/meeting-progress";
 import { MeetingResultView } from "@/components/meeting-result";
 import { UploadZone } from "@/components/upload-zone";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { MeetingResult, MeetingStatus } from "@/lib/types";
 
 type Phase =
@@ -20,6 +22,7 @@ const POLL_INTERVAL_MS = 2500;
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [view, setView] = useState<"flow" | "commitments">("flow");
   const [recorderActive, setRecorderActive] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -116,7 +119,37 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {(phase.kind === "idle" || phase.kind === "uploading") && (
+      <div
+        role="tablist"
+        aria-label="Разделы"
+        className="flex gap-1 border-b border-line print:hidden"
+      >
+        {(
+          [
+            { id: "flow", label: "Запись и протокол" },
+            { id: "commitments", label: "Контроль поручений" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={view === tab.id}
+            onClick={() => setView(tab.id)}
+            className={cn(
+              "border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+              view === tab.id
+                ? "border-bronze-500 text-navy-800"
+                : "border-transparent text-zinc-500 hover:text-navy-700",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "commitments" && <CommitmentsDashboard />}
+
+      {view === "flow" && (phase.kind === "idle" || phase.kind === "uploading") && (
         <>
           <LiveRecorder
             onFinished={handleRecordingFinished}
@@ -135,7 +168,7 @@ export default function HomePage() {
         </>
       )}
 
-      {phase.kind === "processing" && (
+      {view === "flow" && phase.kind === "processing" && (
         <>
           <MeetingProgress status={phase.status} />
           <button
@@ -147,7 +180,7 @@ export default function HomePage() {
         </>
       )}
 
-      {phase.kind === "failed" && (
+      {view === "flow" && phase.kind === "failed" && (
         <>
           <MeetingProgress status={phase.status} />
           <button
@@ -159,7 +192,7 @@ export default function HomePage() {
         </>
       )}
 
-      {phase.kind === "ready" && (
+      {view === "flow" && phase.kind === "ready" && (
         <>
           <MeetingResultView result={phase.result} />
           <button
@@ -171,7 +204,7 @@ export default function HomePage() {
         </>
       )}
 
-      {phase.kind === "error" && (
+      {view === "flow" && phase.kind === "error" && (
         <Card className="border-red-500/40">
           <CardContent className="space-y-3 pt-6">
             <p className="text-sm text-red-700">{phase.message}</p>

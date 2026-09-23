@@ -22,12 +22,12 @@ export function CommitmentsTable({
     <Card>
       <CardHeader>
         <CardTitle>Поручения</CardTitle>
-        <span className="text-xs text-zinc-400">{commitments.length} шт.</span>
+        <span className="text-xs text-zinc-500">{commitments.length} шт.</span>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-zinc-400">
+            <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-zinc-500">
               <th className="px-5 py-2 font-medium">Ответственный</th>
               <th className="px-3 py-2 font-medium">Срок</th>
               <th className="px-3 py-2 font-medium">Поручение</th>
@@ -49,7 +49,7 @@ export function CommitmentsTable({
                 </td>
                 <td className="px-3 py-3 text-zinc-700">
                   <div>{c.text}</div>
-                  <div className="mt-1 text-xs text-zinc-400">
+                  <div className="mt-1 text-xs text-zinc-500">
                     <span className="font-mono">{formatTime(c.t_start)}</span>
                     {" · «"}
                     {c.quote}

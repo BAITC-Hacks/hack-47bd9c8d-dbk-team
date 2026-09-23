@@ -6,6 +6,7 @@ import {
   assembleSession,
   dropSession,
   hasSession,
+  missingSeqs,
 } from "@/lib/recording-sessions";
 import { setStatus } from "@/lib/store";
 
@@ -37,6 +38,17 @@ export async function POST(
     return NextResponse.json(
       { error: "Запись пуста — не получено ни одного чанка." },
       { status: 400 },
+    );
+  }
+
+  const missing = missingSeqs(id);
+  if (missing.length > 0) {
+    return NextResponse.json(
+      {
+        error: `Потеряны фрагменты записи: ${missing.join(", ")}.`,
+        missing,
+      },
+      { status: 409 },
     );
   }
 

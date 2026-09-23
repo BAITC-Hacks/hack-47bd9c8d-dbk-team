@@ -42,6 +42,19 @@ export function assembleSession(
   };
 }
 
+// Sequences must be contiguous 0..max — a gap means a chunk was lost
+// in transit and the assembled file would silently skip audio.
+export function missingSeqs(meetingId: string): number[] {
+  const session = recordingSessions.get(meetingId);
+  if (!session || session.chunks.size === 0) return [];
+  const max = Math.max(...session.chunks.keys());
+  const missing: number[] = [];
+  for (let seq = 0; seq <= max; seq++) {
+    if (!session.chunks.has(seq)) missing.push(seq);
+  }
+  return missing;
+}
+
 export function dropSession(meetingId: string): void {
   recordingSessions.delete(meetingId);
 }
