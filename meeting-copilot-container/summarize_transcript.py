@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
 Отправляет объединённую расшифровку (merged.json — список реплик
-{start, end, speaker, text}) в LLM через OpenRouter и получает summary.
+{start, end, speaker, text}) в языковую модель и получает summary с поручениями.
+
+Модель своя: текст совещания не покидает контур заказчика. Это требование
+кейса, раздел «Ограничения» — передача аудио и текста во внешние облачные API
+запрещена. Эндпоинт OpenAI-совместимый, поэтому подходит любая self-hosted
+модель.
 
 Переменные окружения читаются из файла .env (простой формат KEY=VALUE),
 который лежит рядом со скриптом, либо передаётся через --env-file.
@@ -9,17 +14,22 @@
 над значением из файла.
 
 Нужные переменные:
-    VLLM_BASE_URL  - адрес модели, обычно https://vllm.aibots.kz/v1
-                     (путь /chat/completions дописывается сам)
-    VLLM_API_KEY   - Bearer-токен для авторизации
-    VLLM_MODEL     - (необязательно) модель, по умолчанию qwen3-vl-30b-instruct
+    LLM_API_URL     - URL эндпоинта, OpenAI-совместимый
+                      (в этом проекте https://vllm.aibots.kz/v1/chat/completions)
+    LLM_API_KEY     - Bearer-токен для авторизации
+    LLM_MODEL       - (необязательно) модель по умолчанию
+
+Принимаются и имена VLLM_BASE_URL / VLLM_API_KEY / VLLM_MODEL — так они
+названы в рабочем .env команды и в tools/extract_commitments.py. Адрес можно
+давать как полный endpoint, так и до /v1: путь /chat/completions дописывается
+сам.
 
 Старые имена OPEN_ROUTER_URL / OPEN_ROUTER_AUTH_BEARER / OPEN_ROUTER_MODEL
-тоже принимаются — на них настроены прежние .env.
+продолжают работать как запасной вариант.
 
 Использование:
     python3 summarize_transcript.py transcript_merged.json summary.md
-    python3 summarize_transcript.py transcript_merged.json summary.md --model openai/gpt-4o-mini
+    python3 summarize_transcript.py transcript_merged.json summary.md --model qwen3-vl-30b-instruct
     python3 summarize_transcript.py transcript_merged.json summary.md --lang ru --prompt "своя инструкция"
     python3 summarize_transcript.py transcript_merged.json summary.md --env-file /path/to/.env
 """
@@ -158,7 +168,7 @@ def transcript_to_text(transcript):
     return "\n".join(lines)
 
 
-def call_openrouter(transcript_text, model, system_prompt, api_url, api_key, extra_headers=None):
+def call_llm(transcript_text, model, system_prompt, api_url, api_key, extra_headers=None):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -183,11 +193,11 @@ def call_openrouter(transcript_text, model, system_prompt, api_url, api_key, ext
     try:
         return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as e:
-        raise RuntimeError(f"Неожиданный формат ответа от OpenRouter: {json.dumps(data, ensure_ascii=False)[:2000]}") from e
+        raise RuntimeError(f"Неожиданный формат ответа от модели: {json.dumps(data, ensure_ascii=False)[:2000]}") from e
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Summary расшифровки через OpenRouter")
+    parser = argparse.ArgumentParser(description="Summary расшифровки через свою языковую модель")
     parser.add_argument("input", help="Путь к merged.json")
     parser.add_argument("output", nargs="?", default=None, help="Куда сохранить summary (.md). По умолчанию печатает в stdout")
     parser.add_argument(
@@ -198,7 +208,7 @@ def main():
     parser.add_argument(
         "--model",
         default=None,
-        help=f"Модель OpenRouter (по умолчанию {DEFAULT_MODEL}, можно задать через OPEN_ROUTER_MODEL в env-файле)",
+        help=f"Модель (по умолчанию {DEFAULT_MODEL}, можно задать через LLM_MODEL в env-файле)",
     )
     parser.add_argument(
         "--flash",
@@ -212,6 +222,7 @@ def main():
 
     model = (
         args.model
+        or os.environ.get("LLM_MODEL")
         or os.environ.get("VLLM_MODEL")
         or os.environ.get("OPEN_ROUTER_MODEL")
         or DEFAULT_MODEL
@@ -220,15 +231,25 @@ def main():
         model = FLASH_MODEL
     args.model = model
 
+    # Нейтральные имена основные; VLLM_* — как в рабочем .env команды;
+    # OPEN_ROUTER_* — запасной вариант для прежних .env.
     api_url = chat_completions_url(
-        os.environ.get("VLLM_BASE_URL") or os.environ.get("OPEN_ROUTER_URL") or ""
+        os.environ.get("LLM_API_URL")
+        or os.environ.get("VLLM_BASE_URL")
+        or os.environ.get("OPEN_ROUTER_URL")
+        or ""
     )
-    api_key = os.environ.get("VLLM_API_KEY") or os.environ.get("OPEN_ROUTER_AUTH_BEARER")
+    api_key = (
+        os.environ.get("LLM_API_KEY")
+        or os.environ.get("VLLM_API_KEY")
+        or os.environ.get("OPEN_ROUTER_AUTH_BEARER")
+    )
 
     if not api_url or not api_key:
         print(
-            f"Ошибка: не заданы VLLM_BASE_URL и/или VLLM_API_KEY "
-            f"(допустимы и старые имена OPEN_ROUTER_URL / OPEN_ROUTER_AUTH_BEARER).\n"
+            f"Ошибка: не заданы LLM_API_URL и/или LLM_API_KEY "
+            f"(принимаются также VLLM_BASE_URL / VLLM_API_KEY и старые "
+            f"OPEN_ROUTER_URL / OPEN_ROUTER_AUTH_BEARER).\n"
             f"Задай их в файле {args.env_file} (формат KEY=VALUE) или через export в окружении.",
             file=sys.stderr,
         )
@@ -244,7 +265,7 @@ def main():
     system_prompt += participants_prompt(transcript)
 
     print(f"Отправляю {len(transcript)} реплик в модель {args.model}...", file=sys.stderr)
-    summary = call_openrouter(
+    summary = call_llm(
         transcript_text=transcript_text,
         model=args.model,
         system_prompt=system_prompt,

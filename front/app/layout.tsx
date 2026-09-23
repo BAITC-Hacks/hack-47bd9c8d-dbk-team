@@ -12,14 +12,16 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="ru" className="dark">
-      <body className="min-h-screen bg-zinc-950 font-sans text-zinc-100 antialiased">
+    <html lang="ru">
+      <body className="min-h-screen bg-paper font-sans text-zinc-800 antialiased">
         <RecordingNotice />
-        <header className="border-b border-zinc-800 px-6 py-4 print:hidden">
+        <header className="border-b-2 border-bronze-500 bg-navy-800 px-6 py-4 text-white print:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between">
             <div>
-              <div className="text-base font-semibold">AI Meeting Copilot</div>
-              <div className="text-xs text-zinc-500">
+              <div className="text-base font-semibold tracking-wide">
+                AI Meeting Copilot
+              </div>
+              <div className="text-xs text-bronze-300">
                 Запись → транскрипт → поручения → протокол
               </div>
             </div>

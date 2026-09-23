@@ -43,7 +43,7 @@
           │ ④ HTTPS                          │ ④ HTTPS
           ▼                                  ▼
   ┌──────────────────────────┐     ┌──────────────────────┐
-  │  speech_stack            │     │  LLM (OpenAI-        │
+  │  speech_stack            │     │  LLM (своя, OpenAI-  │
   │  stt.aibots.kz           │     │  совместимый API)    │
   │  /v1/audio/transcriptions│     │  → summary.md        │
   │  /v1/audio/diarize       │     │                      │
@@ -137,7 +137,8 @@ pip install -r requirements.txt
      склеиваются с текстом JSON-транскрипции. Спикеры в этом случае
      безымянные — `Speaker 0`, `Speaker 1` и т.д. (id локальны для записи).
 5. **Суммаризация** (`summarize_transcript.py`) — отправляет склеенный
-   транскрипт в LLM (OpenRouter-совместимый эндпоинт) и получает `summary.md`.
+   транскрипт в свою языковую модель (OpenAI-совместимый эндпоинт) и получает
+   `summary.md`. Текст совещания не уходит во внешние облака — ограничение кейса.
    Последним разделом summary идут **поручения** — см. ниже.
 6. **Экспорт в PDF** (`export_pdf.py`) — рендерит `summary.md` в `summary.pdf`.
    Шаг неблокирующий: если PDF собрать не удалось, пайплайн завершается
@@ -335,7 +336,7 @@ Type 1) её не содержат и дают пустые квадраты. В
 - **`RecognitionResponse`** — ответ по итогам обработки: `messageId`,
   `success` и `errors` (список `RecognitionError` с полями `code`/`message`).
 - **`ErrorCode`** — перечисление возможных кодов ошибок:
-  - `SERVICE_UNAVAILABLE` — недоступен внешний сервис (ai.kdb.kz / OpenRouter);
+  - `SERVICE_UNAVAILABLE` — недоступна речевая служба или языковая модель;
   - `TIMEOUT` — превышено время ожидания обработки;
   - `FILES_NOT_FOUND` — папка MinIO не содержит нужных файлов.
 

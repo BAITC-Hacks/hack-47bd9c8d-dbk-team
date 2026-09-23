@@ -117,7 +117,7 @@ export default function HomePage() {
           <MeetingProgress status={phase.status} />
           <button
             onClick={handleReset}
-            className="text-xs text-zinc-500 underline-offset-2 hover:underline print:hidden"
+            className="text-xs text-navy-600 underline-offset-2 hover:underline print:hidden"
           >
             Отменить и загрузить другую запись
           </button>
@@ -129,7 +129,7 @@ export default function HomePage() {
           <MeetingProgress status={phase.status} />
           <button
             onClick={handleReset}
-            className="text-xs text-zinc-500 underline-offset-2 hover:underline print:hidden"
+            className="text-xs text-navy-600 underline-offset-2 hover:underline print:hidden"
           >
             Загрузить другую запись
           </button>
@@ -141,7 +141,7 @@ export default function HomePage() {
           <MeetingResultView result={phase.result} />
           <button
             onClick={handleReset}
-            className="text-xs text-zinc-500 underline-offset-2 hover:underline print:hidden"
+            className="text-xs text-navy-600 underline-offset-2 hover:underline print:hidden"
           >
             Обработать ещё одну запись
           </button>
@@ -151,10 +151,10 @@ export default function HomePage() {
       {phase.kind === "error" && (
         <Card className="border-red-500/40">
           <CardContent className="space-y-3 pt-6">
-            <p className="text-sm text-red-300">{phase.message}</p>
+            <p className="text-sm text-red-700">{phase.message}</p>
             <button
               onClick={handleReset}
-              className="text-xs text-zinc-400 underline-offset-2 hover:underline"
+              className="text-xs text-navy-600 underline-offset-2 hover:underline"
             >
               Попробовать снова
             </button>
