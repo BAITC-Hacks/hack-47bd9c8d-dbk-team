@@ -1,0 +1,49 @@
+# Серверный оверлей для docker-server: порты 8080/9000/9001 там заняты
+# чужими проектами, поэтому разводим на свободные.
+services:
+  traefik:
+    profiles: [tls]
+
+  kafka:
+    ports:
+      - "127.0.0.1:9094:9094"
+
+  kafka-ui:
+    ports:
+      - "127.0.0.1:8182:8080"
+
+  minio:
+    ports:
+      - "127.0.0.1:9020:9000"
+      - "127.0.0.1:9021:9001"
+
+  # Ни minio-py, ни JS-клиент не принимают схему в endpoint: первый ругается
+  # «path in endpoint is not allowed», второй — «Invalid endPoint». Базовый
+  # compose задаёт http://minio:9000, поэтому переопределяем обоим.
+  meeting-copilot:
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_SECURE: "false"
+      # Обработчик читает AI_KDB_*, а базовый compose задаёт AI_API_* — имена
+      # разошлись, из-за чего стартовая проверка падала с «не задан токен».
+      AI_KDB_URL: ${AI_API_URL}
+      AI_KDB_TOKEN: ${AI_API_TOKEN}
+      # Провайдер speech_stack — умолчание в config.py, пути он знает сам.
+      SPEECH_STACK_URL: ${AI_API_URL}
+      STT_TOKEN: ${AI_API_TOKEN}
+      LLM_API_URL: ${LLM_API_URL}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+
+  copilot-ui:
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      # Интерфейс по умолчанию пишет в recordings, а инфраструктура создаёт
+      # uploads и выдаёт права только на него. Сводим к одному бакету,
+      # иначе загрузка падает с AccessDenied.
+      RECORDINGS_BUCKET: ${MINIO_BUCKET}
+      RESULTS_BUCKET: results
+    ports:
+      - "127.0.0.1:8181:3000"

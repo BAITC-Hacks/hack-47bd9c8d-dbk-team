@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LiveRecorder } from "@/components/live-recorder";
 import { MeetingProgress } from "@/components/meeting-progress";
 import { MeetingResultView } from "@/components/meeting-result";
 import { UploadZone } from "@/components/upload-zone";
@@ -19,6 +20,7 @@ const POLL_INTERVAL_MS = 2500;
 
 export default function HomePage() {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [recorderActive, setRecorderActive] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useCallback(() => {
@@ -99,17 +101,38 @@ export default function HomePage() {
     setPhase({ kind: "idle" });
   }
 
+  function handleRecordingFinished(meetingId: string) {
+    setRecorderActive(false);
+    setPhase({
+      kind: "processing",
+      status: {
+        meeting_id: meetingId,
+        state: "processing",
+        updated_at: new Date().toISOString(),
+      },
+    });
+    pollStatus(meetingId);
+  }
+
   return (
     <div className="space-y-6">
       {(phase.kind === "idle" || phase.kind === "uploading") && (
-        <Card>
-          <CardContent className="pt-6">
-            <UploadZone
-              uploading={phase.kind === "uploading"}
-              onUpload={handleUpload}
-            />
-          </CardContent>
-        </Card>
+        <>
+          <LiveRecorder
+            onFinished={handleRecordingFinished}
+            onActiveChange={setRecorderActive}
+          />
+          {!recorderActive && (
+            <Card>
+              <CardContent className="pt-6">
+                <UploadZone
+                  uploading={phase.kind === "uploading"}
+                  onUpload={handleUpload}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {phase.kind === "processing" && (

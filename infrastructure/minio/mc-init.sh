@@ -10,7 +10,12 @@ until mc alias set local "http://minio:9000" "$MINIO_ROOT_USER" "$MINIO_ROOT_PAS
   sleep 2
 done
 
-mc mb --ignore-existing "local/$MINIO_BUCKET"
+# MINIO_BUCKETS — все нужные бакеты (пробел-сепаратор); дефолт = MINIO_BUCKET.
+# Контракт фронта: recordings + results; воркера: uploads.
+BUCKETS=${MINIO_BUCKETS:-$MINIO_BUCKET}
+for BUCKET in $BUCKETS; do
+  mc mb --ignore-existing "local/$BUCKET"
+done
 
 mc admin policy create local copilot-uploads-rw /policy/copilot-uploads-rw.json \
   || mc admin policy add local copilot-uploads-rw /policy/copilot-uploads-rw.json
@@ -22,4 +27,4 @@ fi
 mc admin policy attach local copilot-uploads-rw --user "$MINIO_APP_USER" \
   || mc admin policy set local copilot-uploads-rw "user=$MINIO_APP_USER"
 
-echo "mc-init: готово (bucket=$MINIO_BUCKET, user=$MINIO_APP_USER)"
+echo "mc-init: готово (buckets=$BUCKETS, user=$MINIO_APP_USER)"
