@@ -1,0 +1,67 @@
+services:
+  stt:
+    build:
+      context: ./stt
+      args:
+        # Какие ПУБЛИЧНЫЕ веса запекаются в образ. Казахская модель сюда не
+        # входит — см. README, раздел «Модели».
+        STT_MODELS: ${STT_MODELS:-large-v3,large-v3-turbo}
+    image: speech-stack-stt:local
+    restart: unless-stopped
+    environment:
+      DEVICE: cuda:0
+      PORT: "8000"
+      # Русский и английский идут на общую модель, казахский — на свою.
+      # Разделение ЗАМЕРЕНО (см. комментарий в stt/config.py), не выбрано.
+      WHISPER_EN_CT2_PATH: ${WHISPER_EN_CT2_PATH:-/app/models/whisper-large-v3-ct2}
+      WHISPER_CT2_PATH: ${WHISPER_CT2_PATH:-/app/models/whisper-large-v3-turbo-ct2}
+      GENERAL_ROUTE_LANGS: ${GENERAL_ROUTE_LANGS:-en,english,eng,ru,rus,russian}
+      AUTO_LANGS: ${AUTO_LANGS:-ru,kk,en}
+    volumes:
+      # Свои веса подставляются сюда, без пересборки образа.
+      - ${EXTRA_MODELS_DIR:-./models}:/app/models/external:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  diarization:
+    build: ./diarization
+    image: speech-stack-diarization:local
+    restart: unless-stopped
+    environment:
+      DIAR_DEVICE: cuda:0
+      DIAR_PORT: "8000"
+      # Порог опознания ЗАМЕРЕН на телефонном звуке: 0.78 даёт 1.7 % ложных
+      # принятий против 3.4 % у 0.60. Менять — только вместе с новым замером
+      # на СВОЁМ материале: порог, снятый на одном звуке, на другой не
+      # переносится.
+      DIAR_MATCH_THRESHOLD: ${DIAR_MATCH_THRESHOLD:-0.78}
+    volumes:
+      - hf-cache:/cache
+      - ./data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [stt, diarization]
+    environment:
+      STT_TOKEN: ${STT_TOKEN:?задайте STT_TOKEN в .env — иначе службы открыты всем}
+      STT_MAX_BODY: ${STT_MAX_BODY:-200MB}
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./gateway/Caddyfile:/etc/caddy/Caddyfile:ro
+
+volumes:
+  hf-cache:

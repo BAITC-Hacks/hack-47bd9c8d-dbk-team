@@ -1,0 +1,74 @@
+# Единая точка входа: один токен, чистые пути, никакой службы напрямую наружу.
+#
+# Токен берётся из окружения, а НЕ пишется сюда: этот файл лежит в репозитории.
+# Задаётся в .env как STT_TOKEN.
+:8080 {
+	route {
+		request_body {
+			max_size {$STT_MAX_BODY:200MB}
+		}
+
+		# Пробы идут ДО проверки токена и спрашивают РЕАЛЬНУЮ службу, а не
+		# отвечают 200 сами: проба, которая всегда says ok, неотличима от
+		# работающей системы ровно до первого инцидента.
+		handle /health {
+			reverse_proxy stt:8000
+		}
+		handle /health/diar {
+			uri replace /health/diar /health
+			reverse_proxy diarization:8000
+		}
+
+		# Всё остальное — за токеном, включая неизвестные пути: снаружи не
+		# должно быть видно даже состава ручек.
+		@unauth not header Authorization "Bearer {$STT_TOKEN}"
+		respond @unauth "unauthorized" 401
+
+		handle /v1/audio/transcriptions {
+			reverse_proxy stt:8000 {
+				transport http {
+					response_header_timeout 300s
+					read_timeout 900s
+				}
+			}
+		}
+		handle /v1/models {
+			reverse_proxy stt:8000
+		}
+
+		handle /v1/audio/diarize {
+			reverse_proxy diarization:8000 {
+				transport http {
+					response_header_timeout 300s
+					read_timeout 900s
+				}
+			}
+		}
+		handle /v1/audio/identify {
+			reverse_proxy diarization:8000 {
+				transport http {
+					response_header_timeout 300s
+					read_timeout 900s
+				}
+			}
+		}
+		handle /v1/audio/verify {
+			reverse_proxy diarization:8000 {
+				transport http {
+					response_header_timeout 300s
+					read_timeout 900s
+				}
+			}
+		}
+		handle /v1/speakers* {
+			reverse_proxy diarization:8000 {
+				transport http {
+					response_header_timeout 300s
+					read_timeout 900s
+				}
+			}
+		}
+
+		respond "not found" 404
+	}
+}

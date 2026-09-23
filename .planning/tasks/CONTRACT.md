@@ -25,10 +25,14 @@ UI (Руслан)  ──Kafka events──►  ingest-service (Антон)  ─
 | `main` | лид | `docker-compose.yml`, деплой, мерджи, README |
 
 ## Эндпоинты и ключи (в .env, в git НЕ едут)
+Речевые службы — наши, лежат в `speech_stack/`, поднимаются одной командой.
+**Нужен NVIDIA GPU**, на docker-server его нет: стек живёт на GPU-машине,
+остальное на docker-server и ходит к нему по сети.
+
 | Что | Адрес | Переменная |
 |---|---|---|
-| ASR | `https://ai.kdb.kz/api/whisper/v1/audio/transcriptions` | `KDB_GATEWAY_TOKEN` |
-| Диаризация | `https://ai.kdb.kz/api/diar/v1/audio/diarize` | `KDB_GATEWAY_TOKEN` |
+| ASR | `<gpu-host>:8080/v1/audio/transcriptions` | `STT_TOKEN` |
+| Диаризация | `<gpu-host>:8080/v1/audio/diarize` | `STT_TOKEN` |
 | LLM | `https://llm.aibots.kz/v1` модель `qwen3-8-27b-fp8` | `LLM_API_KEY` |
 | MinIO | `minio:9000` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
 | Kafka | `redpanda:9092` | — |
@@ -51,6 +55,9 @@ UI (Руслан)  ──Kafka events──►  ingest-service (Антон)  ─
 - **Длительность брать из файла**, поле `duration` врёт (274 с → вернуло 16).
 
 ## Склейка ASR + диаризации
+**Уже написана: `speech_stack/tools/merge_transcript.py`.** Не переписывать.
+Сквозной пример целиком — `speech_stack/tools/example.sh`.
+
 Расшифровать запись ЦЕЛИКОМ, диаризовать ту же запись отдельно, каждое слово отдать тому,
 кто говорил **в его СЕРЕДИНЕ**. Не в начале: на стыке реплик начало слова попадает в хвост
 предыдущего говорящего. Резать аудио на сегменты — хуже, теряется контекст.
