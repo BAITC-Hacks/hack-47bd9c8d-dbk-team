@@ -1,0 +1,11 @@
+services:
+  copilot:
+    build: .
+    network_mode: host
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+      - ./artifacts:/artifacts
+    # Пример запуска:
+    #   docker compose run --rm copilot /data/call.mp4 /data/call.vtt
