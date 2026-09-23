@@ -5,7 +5,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-zinc-800 bg-zinc-900/60 shadow-sm",
+        "rounded-xl border border-line bg-white shadow-sm",
         className,
       )}
       {...props}
@@ -19,7 +19,10 @@ export function CardHeader({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex items-center justify-between gap-4 border-b border-zinc-800 px-5 py-3", className)}
+      className={cn(
+        "flex items-center justify-between gap-4 border-b border-line px-5 py-3",
+        className,
+      )}
       {...props}
     />
   );
@@ -31,7 +34,10 @@ export function CardTitle({
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
-      className={cn("text-sm font-semibold uppercase tracking-wide text-zinc-400", className)}
+      className={cn(
+        "relative pb-1.5 text-sm font-semibold uppercase tracking-wide text-navy-800 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-8 after:bg-bronze-500",
+        className,
+      )}
       {...props}
     />
   );

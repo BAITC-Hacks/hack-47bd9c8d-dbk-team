@@ -22,12 +22,12 @@ export function CommitmentsTable({
     <Card>
       <CardHeader>
         <CardTitle>Поручения</CardTitle>
-        <span className="text-xs text-zinc-500">{commitments.length} шт.</span>
+        <span className="text-xs text-zinc-400">{commitments.length} шт.</span>
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wide text-zinc-500">
+            <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-zinc-400">
               <th className="px-5 py-2 font-medium">Ответственный</th>
               <th className="px-3 py-2 font-medium">Срок</th>
               <th className="px-3 py-2 font-medium">Поручение</th>
@@ -39,17 +39,17 @@ export function CommitmentsTable({
             {commitments.map((c) => (
               <tr
                 key={c.id}
-                className="border-b border-zinc-800/60 align-top last:border-0"
+                className="border-b border-line/70 align-top last:border-0 hover:bg-paper"
               >
-                <td className="whitespace-nowrap px-5 py-3 text-zinc-200">
+                <td className="whitespace-nowrap px-5 py-3 font-medium text-navy-800">
                   {c.assignee}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 text-zinc-300">
+                <td className="whitespace-nowrap px-3 py-3 text-zinc-600">
                   {c.due_date ?? c.due_raw}
                 </td>
-                <td className="px-3 py-3 text-zinc-300">
+                <td className="px-3 py-3 text-zinc-700">
                   <div>{c.text}</div>
-                  <div className="mt-1 text-xs text-zinc-500">
+                  <div className="mt-1 text-xs text-zinc-400">
                     <span className="font-mono">{formatTime(c.t_start)}</span>
                     {" · «"}
                     {c.quote}
