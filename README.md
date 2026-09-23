@@ -23,7 +23,7 @@
 | 4. Шала-казахский | `language=auto`; CER **0.0511** на публичном корпусе с человеческой расшифровкой, [замер](docs/TASK/records/kk/shala-kazakh.md) |
 | 5. Поручения с ответственным и сроком | `tools/extract_commitments.py`, модель на `vllm.aibots.kz` |
 | 6. Диаризация с привязкой к человеку | `speech_stack/diarization` + склейка `merge_transcript.py` |
-| 7. Экспорт протокола в файл | `ui/` |
+| 7. Экспорт протокола в файл | `front/lib/export-docx.ts`, `front/components/printable-protocol.tsx` |
 
 Дополнительно: развёртывание в закрытом контуре заказчика — речевые службы и LLM свои,
 исходники в репозитории.
@@ -51,20 +51,34 @@
 | Обработчик | Python, ffmpeg, Kafka-консьюмер, pydantic-контракты |
 | Транспорт | Apache Kafka (топики запросов и ответов), MinIO (файлы) |
 | Разбор транскрипта | Qwen3.8-27B-FP8 на vLLM, развёрнута на `vllm.aibots.kz` |
-| Интерфейс | веб-приложение, каталог `ui/` |
+| Интерфейс | Next.js (App Router), Tailwind v4, каталог `front/` |
 | Инфраструктура | Docker Compose, Traefik с Let's Encrypt, IaC-документация в `infrastructure/ansible/` |
 
 ## Архитектура
 
 ```
- UI ──► MinIO (запись)
-  │        ▲
-  │        │ transcript.json, summary.md
-  ▼        │
-Kafka ──► meeting-copilot-container ──► stt.aibots.kz  /v1/audio/transcriptions
-                                   └──► stt.aibots.kz  /v1/audio/diarize
-                                   └──► vllm.aibots.kz /v1/chat/completions
+front/  ──① запись──►  MinIO  recordings/<meeting_id>/
+  │                      ▲
+  │ ② meetings.uploaded  │ ⑤ result.json
+  ▼                      │
+Kafka                    │
+  │ ③                    │
+  ▼                      │
+meeting-copilot-container ─┘
+  ├──► stt.aibots.kz  /v1/audio/transcriptions   распознавание
+  ├──► stt.aibots.kz  /v1/audio/diarize          диаризация
+  └──► vllm.aibots.kz /v1/chat/completions       поручения и саммари
+  │
+  └──⑥ meetings.ready | meetings.failed ──► front/
 ```
+
+| Компонент | Каталог | Роль |
+|---|---|---|
+| Веб-интерфейс | `front/` | загрузка записи, статусы, протокол, экспорт в DOCX и PDF |
+| Обработчик | `meeting-copilot-container/` | Kafka-консьюмер: распознавание, диаризация, склейка, разбор |
+| Речевые службы | `speech_stack/` | исходники ASR, диаризации и шлюза |
+| Транспорт и развёртывание | `infrastructure/` | Kafka, MinIO, Traefik, IaC-документация |
+| Утилиты и замеры | `tools/` | извлечение поручений, бенчмарки распознавания |
 
 ### Речевые службы: `stt.aibots.kz`
 
@@ -138,7 +152,9 @@ cd infrastructure
 ./local-up.sh
 ```
 
-Скрипт создаёт `.env`, поднимает сервисы, дожидается готовности и печатает адреса.
+Скрипт создаёт `.env`, поднимает сервисы, дожидается готовности, проверяет что топики и
+бакет созданы, и печатает адреса с паролями. Это единственная точка входа для инфраструктуры:
+отдельного compose в корне репозитория нет.
 
 ### Речевые службы
 
@@ -158,8 +174,16 @@ docker compose up -d --build
 
 ```bash
 cd meeting-copilot-container
-cp .env.example .env          # заполнить адреса Kafka, MinIO и токен речевых служб
+cp .env.example .env          # адреса Kafka и MinIO, токены речевых служб и модели
 docker compose up -d --build
+```
+
+### Веб-интерфейс
+
+```bash
+cd front
+npm install
+npm run dev                   # http://localhost:3000
 ```
 
 ## Как проверить решение
@@ -184,6 +208,15 @@ cd speech_stack
 Эталонный результат такого прогона лежит в репозитории и его можно сверить:
 [`docs/TASK/records/artifacts/protocol.md`](docs/TASK/records/artifacts/protocol.md),
 рядом — сырые ответы распознавания и диаризации.
+
+Замер распознавания на шала-казахском, на публичных данных:
+
+```bash
+huggingface-cli download Tim2190/kazakh-codeswitch-asr \
+    --repo-type dataset --local-dir ./kazakh-codeswitch-asr
+export STT_TOKEN=...
+python3 tools/bench_shala.py kk ru auto
+```
 
 Извлечение поручений из готового протокола:
 
