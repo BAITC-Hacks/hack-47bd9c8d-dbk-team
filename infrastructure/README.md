@@ -7,7 +7,10 @@
 infrastructure/
 ├── README.md                     # этот файл
 ├── docker-compose.yml            # весь стек: traefik+LE, kafka, minio, kafka-ui, приложения
-├── .env.example                  # шаблон конфигурации (скопировать в .env)
+├── docker-compose.local.yml      # оверлей: локальный запуск без домена и traefik
+├── local-up.sh                   # локальный стек одной командой
+├── .env.example                  # шаблон конфигурации для прод/MVP с доменом
+├── env.local.example             # шаблон конфигурации для локального запуска
 ├── kafka/
 │   └── kafka-init.sh             # oneshot: создание топиков
 ├── minio/
@@ -27,8 +30,67 @@ infrastructure/
 
 | Сценарий | Что использовать |
 |---|---|
-| MVP / локальный запуск на одной машине | `docker-compose.yml` + `.env.example` (этот каталог), инструкция ниже |
+| Локальная разработка на своей машине (без домена) | `./local-up.sh` — см. «Локальный запуск» ниже |
+| MVP на одной машине с публичным доменом и TLS | `docker-compose.yml` + `.env.example`, см. «Быстрый старт (MVP)» |
 | Прод-развёртывание as code (ansible, systemd-юниты, vault) | `ansible/README.md` + runbook'и в `ansible/docs/` |
+
+## Локальный запуск
+
+Kafka, MinIO и их веб-интерфейсы на своей машине — одной командой:
+
+```bash
+cd infrastructure
+./local-up.sh
+```
+
+Скрипт создаёт `.env` из `env.local.example` (если его ещё нет), поднимает
+сервисы, дожидается их готовности, проверяет, что топики и бакет созданы,
+и печатает адреса с паролями.
+
+| Сервис | Адрес | Доступ |
+|---|---|---|
+| Kafka (с хоста) | `localhost:9094` | PLAINTEXT, без auth |
+| Kafbat UI | http://localhost:8080 | `admin` / `KAFKA_UI_PASSWORD` |
+| MinIO S3 API | http://localhost:9000 | `MINIO_APP_USER` / `MINIO_APP_PASSWORD` |
+| MinIO консоль | http://localhost:9001 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` |
+
+Все порты слушают только `127.0.0.1` — наружу стек не смотрит.
+
+Остальные команды:
+
+```bash
+./local-up.sh down       # остановить, данные в томах сохранить
+./local-up.sh destroy    # остановить и удалить тома (полный сброс)
+./local-up.sh logs -f    # логи
+```
+
+Что делает оверлей `docker-compose.local.yml`: уводит traefik в профиль `tls`
+(локально нет A-записей и открытых 80/443, Let's Encrypt всё равно не выпустит
+сертификаты) и пробрасывает порты сервисов напрямую на loopback вместо
+роутинга через traefik. Базовый `docker-compose.yml` не меняется — прод-сценарий
+ниже работает как раньше.
+
+Эквивалент без скрипта:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d \
+  kafka kafka-init kafka-ui minio mc-init
+```
+
+### Подключение воркера
+
+Креды локального стека уже прописаны в `meeting-copilot-container/.env.example`
+(`KAFKA_BOOTSTRAP_SERVERS=localhost:9094`, `MINIO_ENDPOINT=localhost:9000`,
+юзер `copilot-app`). Для запуска воркера с хоста:
+
+```bash
+cd ../meeting-copilot-container
+cp .env.example .env
+# подставить AI_KDB_TOKEN и OPEN_ROUTER_AUTH_BEARER
+```
+
+Если воркер поднимается контейнером в сети стека — заменить адреса на
+внутренние: `kafka:9092` и `minio:9000`.
 
 ## Быстрый старт (MVP)
 

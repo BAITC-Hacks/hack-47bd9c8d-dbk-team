@@ -50,6 +50,12 @@ services:
       KAFKA_LISTENERS: INTERNAL://:9092,HOST://:9094,CONTROLLER://:29093
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,HOST://localhost:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      # Листенеры названы кастомно (INTERNAL/HOST/CONTROLLER), поэтому
+      # inter-broker listener надо указать явно: значение по умолчанию —
+      # PLAINTEXT, которого среди них нет, и брокер падает на старте
+      # ("inter.broker.listener.name must be a listener name defined in
+      # advertised.listeners").
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
